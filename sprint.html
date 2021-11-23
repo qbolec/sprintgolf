@@ -1,0 +1,83 @@
+<head>
+  <style>
+    body {
+      background: #750202;
+      margin:0;
+      padding:0;
+    }
+    #ball {
+      width: 20px;
+      height: 20px;
+      background: radial-gradient(circle at 30% 30%, white, black);
+      border-radius:50%;
+      position: absolute;
+      left: 0px;
+    }
+  </style>
+</head>
+
+
+<body>
+  <div id="ball"></div>
+  <audio src="ping.ogg"></audio>
+  <audio src="ping.ogg"></audio>
+  <audio src="ping.ogg"></audio>
+</body>
+
+<script>
+  let ballElement = document.getElementById('ball');
+  let audioElements = document.querySelectorAll('audio');
+  let nextAudioElementIdx = 0;
+  let ballModel = {
+    position: {
+      x: 0,
+      y: 0,
+    },
+    velocity: {
+      x: 10,
+      y: 10,
+    }
+  };
+  setInterval(() => {
+    ballModel.position.x += ballModel.velocity.x;
+    ballModel.position.y += ballModel.velocity.y;
+    let collision = false;
+    if(ballModel.position.y + 20 > document.body.clientHeight){
+      ballModel.position.y -= ballModel.velocity.y;
+      ballModel.velocity.y *= -1;
+      collision = true;
+    }
+    if(ballModel.position.y < 0){
+      ballModel.position.y -= ballModel.velocity.y;
+      ballModel.velocity.y *= -1;
+      collision = true;
+    }
+
+    if(ballModel.position.x + 20 > document.body.clientWidth){
+      ballModel.position.x -= ballModel.velocity.x;
+      ballModel.velocity.x *= -1;
+      collision = true;
+    }
+    if(ballModel.position.x < 0){
+      ballModel.position.x -= ballModel.velocity.x;
+      ballModel.velocity.x *= -1;
+      collision = true;
+    }
+    if(collision){
+      const spring = 0.9;
+      const energy = ballModel.velocity.x**2 + ballModel.velocity.y**2
+
+      const audioElement = audioElements[nextAudioElementIdx++%audioElements.length];
+      audioElement.pause()
+      audioElement.currentTime = 0.2;
+      audioElement.volume = Math.min(energy/1000,1.0);
+      audioElement.play()
+      ballModel.velocity.x *=spring;
+      ballModel.velocity.y *=spring;
+    }
+    
+    ballElement.style.left = ballModel.position.x;
+    ballElement.style.top = ballModel.position.y;
+    ballModel.velocity.y += 2;
+  },20)
+</script>
