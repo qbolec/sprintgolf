@@ -4,9 +4,15 @@
   <meta charset="utf-8">
   <style>
     body {
-      background: #750202;
       margin:0;
       padding:0;
+      background: black;
+    }
+    #arena {
+      background: #750202;
+      height: 200px;
+      width: 1000px;
+
     }
     #ball {
       width: 20px;
@@ -16,15 +22,26 @@
       position: absolute;
       left: 0px;
     }
+    #collision {
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius:50%;
+      position: absolute;
+      left: 0px;
+    }
   </style>
 </head>
 
 
 <body>
+  <audio src="ping.ogg"></audio>
+  <audio src="ping.ogg"></audio>
+  <audio src="ping.ogg"></audio>
+  <div id="arena">
   <div id="ball"></div>
-  <audio src="ping.ogg"></audio>
-  <audio src="ping.ogg"></audio>
-  <audio src="ping.ogg"></audio>
+  <div id="collision"></div>
+  </div>
 </body>
 
 <script>
@@ -32,38 +49,39 @@
   let audioElements = document.querySelectorAll('audio');
   let nextAudioElementIdx = 0;
   let ballModel = {
+    radius:10,
     position: {
-      x: 0,
-      y: 0,
+      x: 10,
+      y: 10,
     },
     velocity: {
       x: 10,
       y: 10,
     }
   };
-  const HEIGHT = 600;
+  const HEIGHT = 200;
   const WIDTH = 1000;
   setInterval(() => {
     ballModel.position.x += ballModel.velocity.x;
     ballModel.position.y += ballModel.velocity.y;
     let collision = false;
-    if(ballModel.position.y + 20 > HEIGHT){
+    if(ballModel.position.y + ballModel.radius > HEIGHT){
       ballModel.position.y -= ballModel.velocity.y;
       ballModel.velocity.y *= -1;
       collision = true;
     }
-    if(ballModel.position.y < 0){
+    if(ballModel.position.y - ballModel.radius< 0){
       ballModel.position.y -= ballModel.velocity.y;
       ballModel.velocity.y *= -1;
       collision = true;
     }
 
-    if(ballModel.position.x + 20 > WIDTH){
+    if(ballModel.position.x + ballModel.radius > WIDTH){
       ballModel.position.x -= ballModel.velocity.x;
       ballModel.velocity.x *= -1;
       collision = true;
     }
-    if(ballModel.position.x < 0){
+    if(ballModel.position.x - ballModel.radius< 0){
       ballModel.position.x -= ballModel.velocity.x;
       ballModel.velocity.x *= -1;
       collision = true;
@@ -81,9 +99,21 @@
       ballModel.velocity.y *=spring;
     }
     
-    ballElement.style.left = ballModel.position.x +"px";
-    ballElement.style.top = ballModel.position.y +"px";
+    ballElement.style.left = ballModel.position.x - ballModel.radius +"px";
+    ballElement.style.top = ballModel.position.y - ballModel.radius +"px";
     ballModel.velocity.y += 2;
+    {/*
+      const collision=nextCollisionWith({r:20, p:ballModel.position, v:ballModel.velocity, a:{x:0,y:2}}, {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}});
+      const collisionElement = document.getElementById('collision')
+      if(collision){
+        collisionElement.style.left = collision.f.p.x + 'px';
+        collisionElement.style.top = collision.f.p.y + 'px';
+        collisionElement.style.display='block';
+      }else{
+        collisionElement.style.display='none';
+      }
+    */}
+
   },20)
 function evaluate(a,x){
   if(!Number.isFinite(x)){
