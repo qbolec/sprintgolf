@@ -15,7 +15,20 @@
       background: #750202;
       height: 200px;
       width: 500px;
-
+      transition: transform 1s;
+      margin: 30px;
+    }
+    #arena.ArrowUp{
+      transform: perspective(500px) rotateX(10deg)
+    }
+    #arena.ArrowDown{
+      transform: perspective(500px) rotateX(-10deg)
+    }
+    #arena.ArrowLeft{
+      transform: perspective(500px) rotateY(-10deg)
+    }
+    #arena.ArrowRight{
+      transform: perspective(500px) rotateY(10deg)
     }
     #ball {
       width: 20px;
@@ -122,7 +135,7 @@
           audioElement.currentTime = 0.2;
           audioElement.volume = Math.min(energy/100,1.0);
           audioElement.play();
-          const spring = 2;
+          const spring = 1.9;
           ballModel.v = plus(ballModel.v, scale(-e*spring, collision.normal));
         }else{
           console.log("wrongly filtered collision?",collision)
@@ -240,5 +253,17 @@ function nextCollisionWith({r,p,v,a},box){
   );
   return collision;
 }
+document.body.addEventListener('keydown',e => {
+  const acc={
+    'ArrowUp'   : {x: 0, y:-1},
+    'ArrowDown' : {x: 0, y: 1},
+    'ArrowLeft' : {x:-1, y: 0},
+    'ArrowRight': {x: 1, y: 0},
+  }[e.key];
+  if(acc){
+    ballModel.a=acc;
+    document.getElementById('arena').className=e.key;
+  }
+})
 </script>
 </html>
