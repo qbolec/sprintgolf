@@ -1,4 +1,7 @@
+<!doctype html>
+<html char>
 <head>
+  <meta charset="utf-8">
   <style>
     body {
       background: #750202;
@@ -38,11 +41,13 @@
       y: 10,
     }
   };
+  const HEIGHT = 600;
+  const WIDTH = 1000;
   setInterval(() => {
     ballModel.position.x += ballModel.velocity.x;
     ballModel.position.y += ballModel.velocity.y;
     let collision = false;
-    if(ballModel.position.y + 20 > document.body.clientHeight){
+    if(ballModel.position.y + 20 > HEIGHT){
       ballModel.position.y -= ballModel.velocity.y;
       ballModel.velocity.y *= -1;
       collision = true;
@@ -53,7 +58,7 @@
       collision = true;
     }
 
-    if(ballModel.position.x + 20 > document.body.clientWidth){
+    if(ballModel.position.x + 20 > WIDTH){
       ballModel.position.x -= ballModel.velocity.x;
       ballModel.velocity.x *= -1;
       collision = true;
@@ -76,8 +81,8 @@
       ballModel.velocity.y *=spring;
     }
     
-    ballElement.style.left = ballModel.position.x;
-    ballElement.style.top = ballModel.position.y;
+    ballElement.style.left = ballModel.position.x +"px";
+    ballElement.style.top = ballModel.position.y +"px";
     ballModel.velocity.y += 2;
   },20)
 function evaluate(a,x){
@@ -170,3 +175,4 @@ function nextCollisionWith({r,p,v,a},box){
   return collision;
 }
 </script>
+</html>
