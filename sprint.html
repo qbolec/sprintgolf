@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <style>
+    *{
+      box-sizing:border-box;
+    }
     body {
       margin:0;
       padding:0;
@@ -25,8 +28,9 @@
     #collision {
       width: 20px;
       height: 20px;
-      background: white;
+      background: transparent;
       border-radius:50%;
+      border:1px solid white;
       position: absolute;
       left: 0px;
     }
@@ -102,17 +106,22 @@
     ballElement.style.left = ballModel.position.x - ballModel.radius +"px";
     ballElement.style.top = ballModel.position.y - ballModel.radius +"px";
     ballModel.velocity.y += 2;
-    {/*
-      const collision=nextCollisionWith({r:20, p:ballModel.position, v:ballModel.velocity, a:{x:0,y:2}}, {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}});
+    {
+      //nextCollisionWith({"r":20,"p":{"x":20,"y":20},"v":{"x":10,"y":10},"a":{"x":0,"y":2}},{"min":{"x":0,"y":200},"max":{"x":1000,"y":210}});
+      //zeros([40,10,0])
+      //zeros([10,0])
+      
+      const collision=nextCollisionWith({r:10, p:ballModel.position, v:ballModel.velocity, a:{x:0,y:2}}, {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}});
       const collisionElement = document.getElementById('collision')
       if(collision){
-        collisionElement.style.left = collision.f.p.x + 'px';
-        collisionElement.style.top = collision.f.p.y + 'px';
+        collisionElement.style.left = collision.f.p.x - collision.f.r + 'px';
+        collisionElement.style.top = collision.f.p.y - collision.f.r + 'px';
         collisionElement.style.display='block';
       }else{
         collisionElement.style.display='none';
       }
-    */}
+      
+    }
 
   },20)
 function evaluate(a,x){
@@ -122,7 +131,7 @@ function evaluate(a,x){
   return a.reduce((acc,v,i)=>acc+v*(x**i),0);
 }
 function zign(x){
-  return x<-1e-19?-1:1e-19<x?1:0;
+  return x<-1e-9?-1:1e-9<x?1:0;
 }
 function bisect_zero(a,min,max){
   const increasing = evaluate(a,min)<=evaluate(a,max);
@@ -130,7 +139,7 @@ function bisect_zero(a,min,max){
   const split = (min,max)=>Number.isFinite(min)?
       (Number.isFinite(max) ? (max+min)*0.5: larger(min,max)):
       (Number.isFinite(max) ? larger(max,min) : 0);
-  while(true){
+  for(let i=0;i<10000;++i){
     const mid=split(min,max);
     const val=evaluate(a,mid);
     if(!zign(val)){
@@ -141,6 +150,9 @@ function bisect_zero(a,min,max){
     }else{
       max=mid;
     }
+    if(i==10000-1){
+      debugger;
+    }
   }
   return min;
 }
@@ -148,6 +160,7 @@ function derivative(a){
   return a.slice(1).map((v,k)=>(k+1)*v)
 }
 function zeros(a){
+  while(a.length && !a.at(-1))a.pop()
   if(!a.length){
     return [0];
   }
@@ -170,8 +183,8 @@ const always = (x) => () => x;
 const length = p => Math.sqrt(p.x**2 + p.y**2)
 const normalize = p => scale(1.0/length(p),p);
 function nextCollisionWith({r,p,v,a},box){
-  const future = t => ({r:r,a:a,v:plus(v,scale(t,a)), p:plus(plus(p, scale(t,s) ), scale(t*t/2,a) )})
-  const collision = null;
+  const future = t => ({r:r,a:a,v:plus(v,scale(t,a)), p:plus(plus(p, scale(t,v) ), scale(t*t/2,a) )})
+  let collision = null;
   function check(eq,hit,state2normal){
     zeros(eq).filter(t => 0<=zign(t)).forEach(t => {
       const f = future(t);
@@ -179,29 +192,29 @@ function nextCollisionWith({r,p,v,a},box){
         const normal = state2normal(f)
         if(scalar(f.v,normal)<0){
           if(!collision || t<collision.t){
-            collision = {t,f,normal}
+            collision = {t,f,normal};
           }
         }
       }
     })
   }
-  check([p.x+r-box.min.x, v.x, a.x/2],({p})=>box.min.y<=p.y && p.y<=box.max.y,always({x:-1,y:0}))
-  check([p.x-r-box.max.x, v.x, a.x/2],({p})=>box.min.y<=p.y && p.y<=box.max.y,always({x:+1,y:0}))
-  check([p.y+r-box.min.y, v.y, a.y/2],({p})=>box.min.x<=p.x && p.x<=box.max.x,always({x:0,y:-1}))
-  check([p.y-r-box.max.y, v.y, a.y/2],({p})=>box.min.x<=p.x && p.x<=box.max.x,always({x:0,y:+1}))
+  check([p.x+r-box.min.x, v.x, a.x/2],({p})=>box.min.y<=p.y && p.y<=box.max.y,always({x:-1,y:0}));
+  check([p.x-r-box.max.x, v.x, a.x/2],({p})=>box.min.y<=p.y && p.y<=box.max.y,always({x:+1,y:0}));
+  check([p.y+r-box.min.y, v.y, a.y/2],({p})=>box.min.x<=p.x && p.x<=box.max.x,always({x:0,y:-1}));
+  check([p.y-r-box.max.y, v.y, a.y/2],({p})=>box.min.x<=p.x && p.x<=box.max.x,always({x:0,y:+1}));
   //  ((p.x+v.x*t+a.x/2*tt)-c.x)**2 + ...  = r*r
   //  ((p.x-c.x)+v.x*t+a.x/2*tt)**2 + ...  = r*r
   //  (p.x-c.x)**2  + v.x**2*tt +(a.x/2)**2*tttt + 2(p.x-c.x)*v.x*t + 2(p.x-c.x)*a.x/2*tt + 2*v.x*a.x/2*ttt +     ...  = r*r
   [box.min.x,box.max.x].forEach(cx =>
     [box.min.y,box.max.y].forEach(cy =>{
-      const c = {x:cx,y:cy}
-      const o = minus(p,c)
-      const by_d=['x','y'].map(d => [o[d]**2, 2*o[d]*s[d], s[d]**2+o[d]*a[d],s[d]*a[d],(a[d]/2)**2]);
-      const eq = by_d[0].map((v,i)=>v+by_d[1][i])
+      const c = {x:cx,y:cy};
+      const o = minus(p,c);
+      const by_d=['x','y'].map(d => [o[d]**2, 2*o[d]*v[d], v[d]**2+o[d]*a[d],v[d]*a[d],(a[d]/2)**2]);
+      const eq = by_d[0].map((v,i)=>v+by_d[1][i]);
       eq[0]-=r*r;
-      check(eq, always(true), f => normalize(minus(f.p,c)))
+      check(eq, always(true), f => normalize(minus(f.p,c)));
     })
-  )
+  );
   return collision;
 }
 </script>
