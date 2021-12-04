@@ -62,14 +62,18 @@
   let audioElements = document.querySelectorAll('audio');
   let nextAudioElementIdx = 0;
   let ballModel = {
-    radius:10,
-    position: {
+    r:10,
+    p: {
       x: 10,
       y: 10,
     },
-    velocity: {
+    v: {
       x: 10,
       y: 10,
+    },
+    a: {
+      x:0,
+      y:2,
     }
   };
   const HEIGHT = 200;
@@ -84,53 +88,18 @@
     //right:
     {min:{x:WIDTH,y:0},max:{x:WIDTH+10,y:HEIGHT}},
   ];
-
   setInterval(() => {
-    ballModel.position.x += ballModel.velocity.x;
-    ballModel.position.y += ballModel.velocity.y;
-    let collision = false;
-    if(ballModel.position.y + ballModel.radius > HEIGHT){
-      ballModel.position.y -= ballModel.velocity.y;
-      ballModel.velocity.y *= -1;
-      collision = true;
-    }
-    if(ballModel.position.y - ballModel.radius< 0){
-      ballModel.position.y -= ballModel.velocity.y;
-      ballModel.velocity.y *= -1;
-      collision = true;
-    }
-
-    if(ballModel.position.x + ballModel.radius > WIDTH){
-      ballModel.position.x -= ballModel.velocity.x;
-      ballModel.velocity.x *= -1;
-      collision = true;
-    }
-    if(ballModel.position.x - ballModel.radius< 0){
-      ballModel.position.x -= ballModel.velocity.x;
-      ballModel.velocity.x *= -1;
-      collision = true;
-    }
-    if(collision){
-      const spring = 0.9;
-      const energy = ballModel.velocity.x**2 + ballModel.velocity.y**2
-
-      const audioElement = audioElements[nextAudioElementIdx++%audioElements.length];
-      audioElement.pause()
-      audioElement.currentTime = 0.2;
-      audioElement.volume = Math.min(energy/1000,1.0);
-      audioElement.play()
-      ballModel.velocity.x *=spring;
-      ballModel.velocity.y *=spring;
-    }
     
-    ballElement.style.left = ballModel.position.x - ballModel.radius +"px";
-    ballElement.style.top = ballModel.position.y - ballModel.radius +"px";
-    ballModel.velocity.y += 2;
-    {
       //nextCollisionWith({"r":20,"p":{"x":20,"y":20},"v":{"x":10,"y":10},"a":{"x":0,"y":2}},{"min":{"x":0,"y":200},"max":{"x":1000,"y":210}});
       //zeros([40,10,0])
       //zeros([10,0])
-      const collision = boxes.map(box => nextCollisionWith({r:10, p:ballModel.position, v:ballModel.velocity, a:{x:0,y:2}}, box)).filter(c=>c).sort((a,b)=>a.t-b.t)[0];
+    let t = 1;
+    function advance(t){
+      ballModel.p = plus(plus(ballModel.p, scale(t,ballModel.v)), scale(t*t/2,ballModel.a));
+      ballModel.v = plus(ballModel.v, scale(t,ballModel.a));
+    }
+    for(let i=0;i<1000&&0<t;++i){
+      const collision = boxes.map(box => nextCollisionWith(ballModel, box)).filter(c=>c).sort((a,b)=>a.t-b.t)[0];
       const collisionElement = document.getElementById('collision')
       if(collision){
         collisionElement.style.left = collision.f.p.x - collision.f.r + 'px';
@@ -140,9 +109,33 @@
       }else{
         collisionElement.style.display='none';
       }
-      
-    }
+      if(collision && 0<collision.t && collision.t <= t){
+        advance(collision.t);
+        const e=scalar(collision.normal,ballModel.v)
+        if(e<0){
+          const energy = -e
+          const audioElement = audioElements[nextAudioElementIdx++%audioElements.length];
+          audioElement.pause()
+          audioElement.currentTime = 0.2;
+          audioElement.volume = Math.min(energy/100,1.0);
+          audioElement.play()
 
+          const spring = 2;
+          ballModel.v = plus(ballModel.v, scale(-e*spring, collision.normal));
+        }else{
+          console.log("wrongly filtered collision?",collision)
+        }
+        t-= collision.t;  
+      }else{
+        advance(t);
+        t-=t;
+      }
+      if(i==999){
+        debugger;
+      }
+    }
+    ballElement.style.left = ballModel.p.x - ballModel.r +"px";
+    ballElement.style.top = ballModel.p.y - ballModel.r +"px";
   },20)
 function evaluate(a,x){
   if(!Number.isFinite(x)){
@@ -206,7 +199,7 @@ function nextCollisionWith({r,p,v,a},box){
   const future = t => ({r:r,a:a,v:plus(v,scale(t,a)), p:plus(plus(p, scale(t,v) ), scale(t*t/2,a) )})
   let collision = null;
   function check(eq,hit,state2normal){
-    zeros(eq).filter(t => 0<=zign(t)).forEach(t => {
+    zeros(eq).filter(t => 0<=t).forEach(t => {
       const f = future(t);
       if(hit(f)){
         const normal = state2normal(f)
