@@ -14,7 +14,7 @@
     #arena {
       background: #750202;
       height: 200px;
-      width: 1000px;
+      width: 500px;
 
     }
     #ball {
@@ -24,6 +24,15 @@
       border-radius:50%;
       position: absolute;
       left: 0px;
+    }
+    #collision::after {
+      content: " ";
+      display: block;
+      background: yellow;
+      width: 1px;
+      height: 10px;
+      left: 9px;
+      position: relative;
     }
     #collision {
       width: 20px;
@@ -64,7 +73,18 @@
     }
   };
   const HEIGHT = 200;
-  const WIDTH = 1000;
+  const WIDTH = 500;
+  const boxes = [
+    //bottom
+    {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}},
+    //top:
+    {min:{x:0,y:-10},max:{x:WIDTH,y:0}},
+    //left:
+    {min:{x:-10,y:0},max:{x:0,y:HEIGHT}},
+    //right:
+    {min:{x:WIDTH,y:0},max:{x:WIDTH+10,y:HEIGHT}},
+  ];
+
   setInterval(() => {
     ballModel.position.x += ballModel.velocity.x;
     ballModel.position.y += ballModel.velocity.y;
@@ -110,13 +130,13 @@
       //nextCollisionWith({"r":20,"p":{"x":20,"y":20},"v":{"x":10,"y":10},"a":{"x":0,"y":2}},{"min":{"x":0,"y":200},"max":{"x":1000,"y":210}});
       //zeros([40,10,0])
       //zeros([10,0])
-      
-      const collision=nextCollisionWith({r:10, p:ballModel.position, v:ballModel.velocity, a:{x:0,y:2}}, {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}});
+      const collision = boxes.map(box => nextCollisionWith({r:10, p:ballModel.position, v:ballModel.velocity, a:{x:0,y:2}}, box)).filter(c=>c).sort((a,b)=>a.t-b.t)[0];
       const collisionElement = document.getElementById('collision')
       if(collision){
         collisionElement.style.left = collision.f.p.x - collision.f.r + 'px';
         collisionElement.style.top = collision.f.p.y - collision.f.r + 'px';
         collisionElement.style.display='block';
+        collisionElement.style.transform=`rotate(${Math.atan2(collision.normal.y,collision.normal.x)+Math.PI/2}rad)`;
       }else{
         collisionElement.style.display='none';
       }
