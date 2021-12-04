@@ -95,6 +95,9 @@
       //zeros([10,0])
     let t = 1;
     function advance(t){
+      if(WIDTH<plus(plus(ballModel.p, scale(t,ballModel.v)), scale(t*t/2,ballModel.a)).x){
+        debugger;
+      }
       ballModel.p = plus(plus(ballModel.p, scale(t,ballModel.v)), scale(t*t/2,ballModel.a));
       ballModel.v = plus(ballModel.v, scale(t,ballModel.a));
     }
@@ -109,7 +112,7 @@
       }else{
         collisionElement.style.display='none';
       }
-      if(collision && 0<collision.t && collision.t <= t){
+      if(collision && 0<=collision.t && collision.t <= t){
         advance(collision.t);
         const e=scalar(collision.normal,ballModel.v)
         if(e<0){
@@ -118,14 +121,13 @@
           audioElement.pause()
           audioElement.currentTime = 0.2;
           audioElement.volume = Math.min(energy/100,1.0);
-          audioElement.play()
-
+          audioElement.play();
           const spring = 2;
           ballModel.v = plus(ballModel.v, scale(-e*spring, collision.normal));
         }else{
           console.log("wrongly filtered collision?",collision)
         }
-        t-= collision.t;  
+        t-= collision.t;
       }else{
         advance(t);
         t-=t;
@@ -194,6 +196,7 @@ const scale = (s,p) => ({x:s*p.x,y:s*p.y});
 const scalar = (a,b) => a.x*b.x + a.y*b.y;
 const always = (x) => () => x;
 const length = p => Math.sqrt(p.x**2 + p.y**2)
+const distance = (a,b) => length(minus(a,b));
 const normalize = p => scale(1.0/length(p),p);
 function nextCollisionWith({r,p,v,a},box){
   const future = t => ({r:r,a:a,v:plus(v,scale(t,a)), p:plus(plus(p, scale(t,v) ), scale(t*t/2,a) )})
@@ -215,6 +218,7 @@ function nextCollisionWith({r,p,v,a},box){
   check([p.x-r-box.max.x, v.x, a.x/2],({p})=>box.min.y<=p.y && p.y<=box.max.y,always({x:+1,y:0}));
   check([p.y+r-box.min.y, v.y, a.y/2],({p})=>box.min.x<=p.x && p.x<=box.max.x,always({x:0,y:-1}));
   check([p.y-r-box.max.y, v.y, a.y/2],({p})=>box.min.x<=p.x && p.x<=box.max.x,always({x:0,y:+1}));
+  // Poniżej znajduje się wyprowadzenie wzoru na równanie 4tego stopnia opisujące kolizję kulki z narożnikiem.
   //  ((p.x+v.x*t+a.x/2*tt)-c.x)**2 + ...  = r*r
   //  ((p.x-c.x)+v.x*t+a.x/2*tt)**2 + ...  = r*r
   //  (p.x-c.x)**2  + v.x**2*tt +(a.x/2)**2*tttt + 2(p.x-c.x)*v.x*t + 2(p.x-c.x)*a.x/2*tt + 2*v.x*a.x/2*ttt +     ...  = r*r
@@ -225,7 +229,13 @@ function nextCollisionWith({r,p,v,a},box){
       const by_d=['x','y'].map(d => [o[d]**2, 2*o[d]*v[d], v[d]**2+o[d]*a[d],v[d]*a[d],(a[d]/2)**2]);
       const eq = by_d[0].map((v,i)=>v+by_d[1][i]);
       eq[0]-=r*r;
-      check(eq, always(true), f => normalize(minus(f.p,c)));
+      check(eq, always(true), f => {
+        const d=distance(f.p,c);
+        if(zign(d-r)){
+          console.log("wrong distance on corner collision",d);
+        }
+        return normalize(minus(f.p,c))
+      });
     })
   );
   return collision;
