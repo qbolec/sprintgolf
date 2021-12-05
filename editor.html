@@ -11,12 +11,165 @@
         padding:0;
         background: brown;
       }
+      #desktop{
+        position: relative;;
+        height:600px;  
+        width:800px;  
+      }
+      #preview,
       #photo{
-       width:700px;  
+        position: absolute;
+        height:100%;  
+        width:100%;  
+        top:0px;
+        left:0px;
       }
     </style>
   </head>
   <body>
-    <img id="photo" src="labirynt Hugo.jpg">
+    <div id="desktop">
+      <img id="photo" src="labirynt Hugo.jpg"/>
+      <canvas id="preview" width="800" height="600"/>
+    </div>
+    <label for="rows">rows:</label><input type=number id="rows" value=25>
+    <label for="columns">columns:</label><input type=number id="columns" value=38>
+    <span id="status"></span>
   </body>
+  <script type="text/javascript">
+
+const photo = document.getElementById('photo');
+const preview = document.getElementById('preview');
+const ctx = preview.getContext('2d');
+
+function solve(A,b){
+  //Ax=b
+  const vars_num=A[0].length;
+  const eq_num=A.length;
+  for(let c=0;c<vars_num;++c){
+    let best_r = c;
+    for(let r=c+1;r<eq_num;++r){
+      if(Math.abs(A[best_r][c])<Math.abs(A[r][c])){
+        best_r=r;
+      }
+    }
+    {
+      let r=c;
+      let tmp_row=A[r];
+      A[r]=A[best_r];
+      A[best_r]=tmp_row;
+      let tmp=b[r];
+      b[r]=b[best_r];
+      b[best_r]=tmp;
+    }
+    for(let r=0;r<eq_num;++r)if(r!=c){
+      const s=A[r][c]/A[c][c];
+      for(let i=0;i<vars_num;++i){
+        A[r][i]-= A[c][i]*s;
+      }
+      b[r]-=b[c]*s;
+    }
+  }
+  let solution=[];
+  for(let v=0;v<vars_num;++v){
+    solution[v]=b[v]/A[v][v]
+  }
+  return solution;
+}
+
+function project(understanding,p){
+  const C=understanding.u.z*p.x+understanding.v.z*p.y+1;
+  if(C<=0)return {x:NaN,y:NaN};
+  return {
+    x: (understanding.u.x*p.x+understanding.v.x*p.y+understanding.o.x)/C,
+    y: (understanding.u.y*p.x+understanding.v.y*p.y+understanding.o.y)/C,
+  }
+}
+function toIJ(understanding,ip){
+  /*
+  ip.x*(understanding.u.z*p.x+understanding.v.z*p.y+1)=understanding.u.x*p.x+understanding.v.x*p.y+understanding.o.x
+  ip.y*(understanding.u.z*p.x+understanding.v.z*p.y+1)=understanding.u.y*p.x+understanding.v.y*p.y+understanding.o.y
+  */
+  let A=[
+    [understanding.u.z*ip.x-understanding.u.x, understanding.v.z*ip.x-understanding.v.x],
+    [understanding.u.z*ip.y-understanding.u.y, understanding.v.z*ip.y-understanding.v.y],
+  ]
+  let b=[
+    understanding.o.x - ip.x,
+    understanding.o.y - ip.y,
+  ]
+  const s=solve(A,b);
+  return { x:s[0],y:s[1] }
+}
+function understand(rect_size,clicked_points){
+  let ij=[
+    [0,0],
+    [0,rect_size.height],
+    [rect_size.width,rect_size.height],
+    [rect_size.width,0],
+  ];
+  let A=[];
+  let b=[];
+  for(var t=0;t<4;++t){
+    const x=clicked_points[t].x;
+    const y=clicked_points[t].y;
+    const i=ij[t][0];
+    const j=ij[t][1];
+    //  u.x*i  + v.x*j + o.x = (u.z*i + v.z*j + 1)*clicked_point.x
+    //  u.y*i  + v.y*j + o.y = (u.z*i + v.z*j + 1)*clicked_point.y
+    //      u.x, u.y,  u.z, v.x, v.y,  v.z, o.x, o.y
+    A.push([  i,   0, -i*x,   j,   0, -j*x,   1,   0  ] );
+    b.push(x);
+    A.push([  0,   i, -i*y,   0,   j, -j*y,   0,   1  ] );
+    b.push(y);
+  }
+  const s=solve(A,b);
+  return {
+    u:{x: s[0], y:s[1], z:s[2]},
+    v:{x: s[3], y:s[4], z:s[5]},
+    o:{x: s[6], y:s[7]},
+  }
+}
+function drawDot(color,p){
+  ctx.strokeStyle=color;
+  ctx.beginPath();
+  ctx.rect(p.x-1, p.y-1,3,3);
+  ctx.stroke();
+}
+
+let clicked_points = [{"x":20,"y":46},{"x":16,"y":550},{"x":770,"y":538},{"x":767,"y":52}];
+function getGridSize(){
+  return {
+    height:+document.getElementById('rows').value,
+    width:+document.getElementById('columns').value,
+  }
+}
+function show(){
+  clicked_points.forEach(p => drawDot('red',p))
+  if(clicked_points.length==4){
+    const gridSize = getGridSize();
+    const understanding=understand(getGridSize(),clicked_points);
+    console.log(understanding);
+    for(let r=0;r<=gridSize.height;++r){
+      for(let c=0;c<=gridSize.width;++c){
+        drawDot('yellow',project(understanding,{x:c,y:r}));
+      }
+    }
+  }
+}
+preview.addEventListener('click',(e)=>{
+  clicked_points.push({x:e.clientX,y:e.clientY});
+  if(4<clicked_points.length){
+    clicked_points.shift();
+  }
+  show();
+})
+preview.addEventListener('mousemove',(e)=>{
+  if(clicked_points.length==4){
+    const understanding = understand(getGridSize(),clicked_points);
+    const ij=toIJ(understanding,{x:e.clientX,y:e.clientY})
+    document.getElementById('status').innerText = `x:${ij.x.toFixed(2)} y:${ij.y.toFixed(2)}` 
+  }
+})
+show();
+  </script>
 </html>
