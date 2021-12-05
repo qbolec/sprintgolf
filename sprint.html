@@ -11,6 +11,10 @@
       padding:0;
       background: black;
     }
+    #photo{
+      transform-origin:0 0;
+      transform: matrix3d(0.9813200360794536,-0.008076919653579956,0,-0.000047610272147675895,0.00778825425459884,1.0055764968707113,0,0.000026776355385545698,0,0,0,0,-19.98466041730062,-46.09498046298111,0,0.9997204930952184)
+    }
     #arena {
       background: #750202;
       transition: transform 1s;
@@ -67,7 +71,7 @@
   <audio src="ping.ogg"></audio>
   <audio src="ping.ogg"></audio>
   <audio src="ping.ogg"></audio>
-  <div id="arena">
+  <div id="arena"><img src="labirynt Hugo.jpg" id="photo" width=800 height=600/>
   <div id="ball"></div>
   <div id="collision"></div>
   </div>
@@ -77,6 +81,33 @@
   let ballElement = document.getElementById('ball');
   let audioElements = document.querySelectorAll('audio');
   let nextAudioElementIdx = 0;
+  let map = [
+  "       x     x      x        x    xx  ",
+  "xxxx x xxxxx x xxxx x xxxxx xx        ",
+  "   x x x     x x  x x x      xxxxx x x",
+  " x x x x  x  x    x x x x  x       x x",
+  "   x x x   xxxxx      x xx x  xxx x  x",
+  "xx x x x         xxxx x    x   x     x",
+  "   x x   xxxxx        x xxxx xxxxxxx  ",
+  " xxx xxxxx      xxx x x        x      ",
+  "   x     x      x x x x xxx x  x x x  ",
+  " x xx x  x xxxxxx x         x x  x x x",
+  " x     x x x      x x xxxx  x      x x",
+  " x     x x x xxxx x x x      x xxxxx x",
+  "xxxxxxxx x        x x xx xxxx         ",
+  "         x xxxxxxxx x x       x xxx x ",
+  "  x  x x x    x     x  xxxxxx       x ",
+  "     x x xxxx x  x  xxxx      xxxxxxx ",
+  " x xxx x x       xx x                 ",
+  "     x x xxxxxxxxx  xxxxxxxxxxxxxxxxxx",
+  " x   x   x     x              x      x",
+  " x x xxxxx  x    x  x xx x x xx xxxx x",
+  " x x        x xx xx x  x x x    x  x x",
+  " x x  x   x x x  x  x      x  x xx xxx",
+  " x    x     x    xxxx xxxxxx  x       ",
+  " xxxx x xxxxxxxx    x    x    xxxxxx x",
+  "      x           x x x  xxxxx        "
+]
   let ballModel = {
     r:10,
     p: {
@@ -92,24 +123,17 @@
       y:2,
     }
   };
-  const HEIGHT = 550;
-  const WIDTH = 550;
+  const HEIGHT = 20*map.length;
+  const WIDTH = 20*map[0].length;
   const boxes = [
     //bottom
     {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}},
-    // pierwsza kreska Hugo:
-    {min:{x:50,y:100},max:{x:100,y:110}},
-    // druga:
-    {min:{x:150,y:100},max:{x:400,y:110}},
     //top:
     {min:{x:0,y:-10},max:{x:WIDTH,y:0}},
     //left:
     {min:{x:-10,y:0},max:{x:0,y:HEIGHT}},
     //right:
     {min:{x:WIDTH,y:0},max:{x:WIDTH+10,y:HEIGHT}},
-    //something:
-    {min:{x:100,y:100},max:{x:110,y:200}},
-    {min:{x:300,y:0},max:{x:310,y:50}},
   ];
   const arena=    document.getElementById('arena');
   arena.style.height =HEIGHT  + 'px';

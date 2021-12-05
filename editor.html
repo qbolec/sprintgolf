@@ -40,8 +40,12 @@
 const photo = document.getElementById('photo');
 const preview = document.getElementById('preview');
 const ctx = preview.getContext('2d');
-
+const SATURATION = 13;
+const FOCUS = 0.25;
+const FRACTION = 0.5;
 function solve(A,b){
+  A=A.map(row=>row.slice(0));
+  b=b.slice(0)
   //Ax=b
   const vars_num=A[0].length;
   const eq_num=A.length;
@@ -83,6 +87,33 @@ function project(understanding,p){
     x: (understanding.u.x*p.x+understanding.v.x*p.y+understanding.o.x)/C,
     y: (understanding.u.y*p.x+understanding.v.y*p.y+understanding.o.y)/C,
   }
+}
+function invert(A){
+  let A_inv=A.map(()=>A.map(()=>0));
+  for(let i=0;i<A.length;i++){
+    solve(A,A.map((_,j)=>i==j?1:0)).forEach((v,j)=>A_inv[j][i]=v)
+  }
+  return A_inv;
+}
+function vector_mul_vector (a,b) {
+  return a.reduce((sum,v,i)=>sum+v*b[i],0);
+}
+function matrix_mul_vector(A,v){
+  return A.map(row=>vector_mul_vector(row,v));
+}
+function getMatrices(understanding){
+  const A = [
+    [understanding.u.x,understanding.v.x,understanding.o.x],
+    [understanding.u.y,understanding.v.y,understanding.o.y],
+    [understanding.u.z,understanding.v.z,1],
+  ];
+  const A_inv=invert(A);
+  return {A,A_inv};
+}
+function toIJ2(understanding,ip){
+  const {A_inv}=getMatrices(understanding);
+  const h=matrix_mul_vector(A_inv,[ip.x,ip.y,1]);
+  return {x:h[0]/h[2],y:h[1]/h[2]};
 }
 function toIJ(understanding,ip){
   /*
@@ -152,7 +183,7 @@ function show(){
     const gridSize = getGridSize();
     const understanding=understand(getGridSize(),clicked_points);
     const stats = analyze();
-    console.log(stats);
+    console.log(JSON.stringify(stats.map(row=>row.map(v => v>FRACTION?'x':' ').join('')),undefined,2));
     for(let r=0;r<=gridSize.height;++r){
       for(let c=0;c<=gridSize.width;++c){
         drawDot('yellow',project(understanding,{x:c,y:r}));
@@ -160,7 +191,7 @@ function show(){
     }
     for(let r=0;r<gridSize.height;++r){
       for(let c=0;c<gridSize.width;++c){
-        drawDot(stats[c][r]>0.5?'blue':'white',project(understanding,{x:c+0.5,y:r+0.5}));
+        drawDot(stats[r][c]>FRACTION?'blue':'white',project(understanding,{x:c+0.5,y:r+0.5}));
       }
     }
   }
@@ -177,7 +208,8 @@ preview.addEventListener('mousemove',(e)=>{
   if(clicked_points.length==4){
     const understanding = understand(getGridSize(),clicked_points);
     const ij=toIJ(understanding,{x:e.clientX,y:e.clientY})
-    document.getElementById('status').innerText = `x:${ij.x.toFixed(2)} y:${ij.y.toFixed(2)}` 
+    const ij2=toIJ2(understanding,{x:e.clientX,y:e.clientY})
+    document.getElementById('status').innerText = `x:${ij.x.toFixed(2)} ${ij2.x.toFixed(2)}  y:${ij.y.toFixed(2)} ${ij2.y.toFixed(2)}` 
   }
 })
 function analyze(){
@@ -193,13 +225,13 @@ function analyze(){
         x:Math.floor(IJ.x),
         y:Math.floor(IJ.y),
       };
-      if(Math.abs(IJ.x-ij.x-0.5)<0.2&&Math.abs(IJ.y-ij.y-0.5)<0.2 &&  0<=ij.x && ij.x<gridSize.width && 0<=ij.y && ij.y<gridSize.height){
-        while(stats.length<=ij.x)stats.push([]);
-        while(stats[ij.x].length<=ij.y)stats[ij.x].push({count:0,sum:0});
-        stats[ij.x][ij.y].count++;
+      if(Math.abs(IJ.x-ij.x-0.5)<FOCUS&&Math.abs(IJ.y-ij.y-0.5)<FOCUS &&  0<=ij.x && ij.x<gridSize.width && 0<=ij.y && ij.y<gridSize.height){
+        while(stats.length<=ij.y)stats.push([]);
+        while(stats[ij.y].length<=ij.x)stats[ij.y].push({count:0,sum:0});
+        stats[ij.y][ij.x].count++;
         const colors = [data[pos+0],data[pos+1],data[pos+2]]
         const range = Math.max.apply(Math,colors)-Math.min.apply(Math,colors);
-        stats[ij.x][ij.y].sum+=13<range;
+        stats[ij.y][ij.x].sum+=SATURATION<range;
       }
       pos+=4;
     }
@@ -208,6 +240,18 @@ function analyze(){
 }
 photo.addEventListener('load',()=>{
   show();
+  const gridSize=getGridSize();
+  const understanding=understand(gridSize,clicked_points);
+  const sx = 20;
+  const sy = 20;
+  const {A_inv}=getMatrices(understanding);
+  const transform=[
+    A_inv[0][0]*sx,A_inv[1][0]*sy,0,A_inv[2][0],
+    A_inv[0][1]*sx,A_inv[1][1]*sy,0,A_inv[2][1],
+    0, 0, 0, 0,
+    A_inv[0][2]*sx,A_inv[1][2]*sy,0,A_inv[2][2],
+  ].join(',')
+  console.log(`transform: matrix3d(${transform})`)
 })
   </script>
 </html>
