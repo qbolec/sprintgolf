@@ -144,17 +144,27 @@ function getGridSize(){
   }
 }
 function show(){
-  clicked_points.forEach(p => drawDot('red',p))
+  ctx.drawImage(
+    photo, 
+    0, 0, photo.width, photo.height
+  );
   if(clicked_points.length==4){
     const gridSize = getGridSize();
     const understanding=understand(getGridSize(),clicked_points);
+    const stats = analyze();
     console.log(understanding);
     for(let r=0;r<=gridSize.height;++r){
       for(let c=0;c<=gridSize.width;++c){
         drawDot('yellow',project(understanding,{x:c,y:r}));
       }
     }
+    for(let r=0;r<gridSize.height;++r){
+      for(let c=0;c<gridSize.width;++c){
+        drawDot(stats[c][r]>33?'blue':'white',project(understanding,{x:c+0.5,y:r+0.5}));
+      }
+    }
   }
+  clicked_points.forEach(p => drawDot('red',p))
 }
 preview.addEventListener('click',(e)=>{
   clicked_points.push({x:e.clientX,y:e.clientY});
@@ -170,6 +180,31 @@ preview.addEventListener('mousemove',(e)=>{
     document.getElementById('status').innerText = `x:${ij.x.toFixed(2)} y:${ij.y.toFixed(2)}` 
   }
 })
-show();
+function analyze(){
+  const data=ctx.getImageData(0,0,preview.width,preview.height).data;
+  const gridSize = getGridSize();
+  const understanding = understand(gridSize,clicked_points);
+  const stats = [];
+  for(let y=0;y<preview.height;++y){
+    let pos=y*preview.width*4;
+    for(let x=0;x<preview.width;++x){
+      let ij=toIJ(understanding,{x,y});
+      ij.x=Math.floor(ij.x)
+      ij.y=Math.floor(ij.y)
+      if(0<=ij.x && ij.x<gridSize.width && 0<=ij.y && ij.y<gridSize.height){
+        while(stats.length<=ij.x)stats.push([]);
+        while(stats[ij.x].length<=ij.y)stats[ij.x].push({count:0,sum:0});
+        stats[ij.x][ij.y].count++;
+        const colors = [data[pos+0],data[pos+1],data[pos+2]]
+        stats[ij.x][ij.y].sum+=Math.max.apply(Math,colors)-Math.min.apply(Math,colors);
+      }
+      pos+=4;
+    }
+  }
+  return stats.map(row => row.map(c => c.sum/c.count));
+}
+photo.addEventListener('load',()=>{
+  show();
+})
   </script>
 </html>
