@@ -13,10 +13,9 @@
     }
     #arena {
       background: #750202;
-      height: 200px;
-      width: 500px;
       transition: transform 1s;
       margin: 30px;
+      position: relative;
     }
     #arena.ArrowUp{
       transform: perspective(500px) rotateX(10deg)
@@ -29,6 +28,10 @@
     }
     #arena.ArrowRight{
       transform: perspective(500px) rotateY(10deg)
+    }
+    .box {
+      background: white;
+      position: absolute;
     }
     #ball {
       width: 20px;
@@ -89,18 +92,37 @@
       y:2,
     }
   };
-  const HEIGHT = 200;
-  const WIDTH = 500;
+  const HEIGHT = 550;
+  const WIDTH = 550;
   const boxes = [
     //bottom
     {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}},
+    // pierwsza kreska Hugo:
+    {min:{x:50,y:100},max:{x:100,y:110}},
+    // druga:
+    {min:{x:150,y:100},max:{x:400,y:110}},
     //top:
     {min:{x:0,y:-10},max:{x:WIDTH,y:0}},
     //left:
     {min:{x:-10,y:0},max:{x:0,y:HEIGHT}},
     //right:
     {min:{x:WIDTH,y:0},max:{x:WIDTH+10,y:HEIGHT}},
+    //something:
+    {min:{x:100,y:100},max:{x:110,y:200}},
+    {min:{x:300,y:0},max:{x:310,y:50}},
   ];
+  const arena=    document.getElementById('arena');
+  arena.style.height =HEIGHT  + 'px';
+  arena.style.width =WIDTH  + 'px';
+  boxes.forEach(box => {
+    const boxElement=document.createElement('div');
+    boxElement.className='box';
+    boxElement.style.left = box.min.x + 'px';
+    boxElement.style.top = box.min.y + 'px';
+    boxElement.style.width = box.max.x-box.min.x + 'px';
+    boxElement.style.height = box.max.y-box.min.y + 'px';
+    document.getElementById('arena').appendChild(boxElement);
+  })
   setInterval(() => {
     
       //nextCollisionWith({"r":20,"p":{"x":20,"y":20},"v":{"x":10,"y":10},"a":{"x":0,"y":2}},{"min":{"x":0,"y":200},"max":{"x":1000,"y":210}});
@@ -113,7 +135,11 @@
       }
       ballModel.p = plus(plus(ballModel.p, scale(t,ballModel.v)), scale(t*t/2,ballModel.a));
       ballModel.v = plus(ballModel.v, scale(t,ballModel.a));
+      ['x','y'].forEach(d=>{if(!zign(ballModel.v[d])){
+        ballModel.v[d]=0
+      }});
     }
+    const originalAcceleration = ballModel.a;
     for(let i=0;i<1000&&0<t;++i){
       const collision = boxes.map(box => nextCollisionWith(ballModel, box)).filter(c=>c).sort((a,b)=>a.t-b.t)[0];
       const collisionElement = document.getElementById('collision')
@@ -126,7 +152,13 @@
         collisionElement.style.display='none';
       }
       if(collision && 0<=collision.t && collision.t <= t){
-        advance(collision.t);
+        const delta=collision.t;
+        advance(delta);
+        if(10<i){
+          //ok, this is getting problematic...
+          //let's pretend there's no acceleration for a moment
+          ballModel.a = {x:0,y:0};
+        }
         const e=scalar(collision.normal,ballModel.v)
         if(e<0){
           const energy = -e
@@ -135,12 +167,12 @@
           audioElement.currentTime = 0.2;
           audioElement.volume = Math.min(energy/100,1.0);
           audioElement.play();
-          const spring = 1.9;
+          const spring = 1.5;
           ballModel.v = plus(ballModel.v, scale(-e*spring, collision.normal));
         }else{
           console.log("wrongly filtered collision?",collision)
         }
-        t-= collision.t;
+        t-= delta;
       }else{
         advance(t);
         t-=t;
@@ -149,6 +181,7 @@
         debugger;
       }
     }
+    ballModel.a=originalAcceleration;
     ballElement.style.left = ballModel.p.x - ballModel.r +"px";
     ballElement.style.top = ballModel.p.y - ballModel.r +"px";
   },20)
