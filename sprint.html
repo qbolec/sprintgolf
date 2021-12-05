@@ -68,6 +68,12 @@
       left: 0px;
       margin-left:-6px;
       margin-top:-6px;
+      display: none;
+    }
+    #futureBox{
+      position: absolute;
+      border:1px solid red;
+      display: none;
     }
   </style>
 </head>
@@ -80,6 +86,7 @@
   <div id="arena"><img src="labirynt Hugo.jpg" id="photo" width=800 height=600/>
   <div id="ball"></div>
   <div id="collision"></div>
+  <div id="futureBox"></div>
   </div>
 </body>
 
@@ -176,6 +183,10 @@
     boxElement.style.height = box.max.y-box.min.y + 'px';
     document.getElementById('arena').appendChild(boxElement);
   })*/
+  function intersect(a,b){
+    return a.min.x <= b.max.x && b.min.x <= a.max.x &&
+           a.min.y <= b.max.y && b.min.y <= a.max.y;
+  }
   setInterval(() => {
     
       //nextCollisionWith({"r":20,"p":{"x":20,"y":20},"v":{"x":10,"y":10},"a":{"x":0,"y":2}},{"min":{"x":0,"y":200},"max":{"x":1000,"y":210}});
@@ -193,9 +204,22 @@
       }});
     }
     const originalAcceleration = ballModel.a;
+    const futureBoxElement=document.getElementById('futureBox');
+    const collisionElement = document.getElementById('collision')
     for(let i=0;i<1000&&0<t;++i){
-      const collision = boxes.map(box => nextCollisionWith(ballModel, box)).filter(c=>c).sort((a,b)=>a.t-b.t)[0];
-      const collisionElement = document.getElementById('collision')
+      const futureBox = {min:{},max:{}};
+      ['x','y'].forEach(dir=>{
+        const formula = [ballModel.p[dir],ballModel.v[dir],0.5*ballModel.a[dir]];
+        const candidates = [0,t,...zeros(derivative(formula),0).filter(m=>0<m && m<t)].map(m=>evaluate(formula,m));
+        futureBox.max[dir]=Math.max.apply(Math,candidates)+ballModel.r;
+        futureBox.min[dir]=Math.min.apply(Math,candidates)-ballModel.r;
+      });
+      futureBoxElement.style.left=futureBox.min.x + 'px';
+      futureBoxElement.style.top=futureBox.min.y + 'px';
+      futureBoxElement.style.width=futureBox.max.x-futureBox.min.x + 'px';
+      futureBoxElement.style.height=futureBox.max.y-futureBox.min.y + 'px';
+
+      const collision = boxes.filter(box=>intersect(box,futureBox)).map(box => nextCollisionWith(ballModel, box)).filter(c=>c).sort((a,b)=>a.t-b.t)[0];
       if(collision){
         collisionElement.style.left = collision.f.p.x  + 'px';
         collisionElement.style.top = collision.f.p.y  + 'px';
@@ -220,7 +244,7 @@
           audioElement.currentTime = 0.2;
           audioElement.volume = Math.min(energy/100,1.0);
           audioElement.play().catch(()=>{});
-          const spring = 1.5;
+          const spring = 1.6;
           ballModel.v = plus(ballModel.v, scale(-e*spring, collision.normal));
         }else{
           console.log("wrongly filtered collision?",collision)
