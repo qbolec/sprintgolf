@@ -10,6 +10,7 @@
       margin:0;
       padding:0;
       background: black;
+      overflow: hidden;
     }
     #photo{
       transform-origin:0 0;
@@ -18,8 +19,9 @@
     #arena {
       background: #750202;
       transition: transform 1s;
-      margin: 30px;
+      margin: 30px auto;
       position: relative;
+      transform: perspective(500px)
     }
     #arena.ArrowUp{
       transform: perspective(500px) rotateX(10deg)
@@ -38,30 +40,34 @@
       position: absolute;
     }
     #ball {
-      width: 20px;
-      height: 20px;
+      width: 12px;
+      height: 12px;
       background: radial-gradient(circle at 30% 30%, white, black);
       border-radius:50%;
       position: absolute;
       left: 0px;
+      margin-left:-6px;
+      margin-top:-6px;
     }
     #collision::after {
       content: " ";
       display: block;
       background: yellow;
       width: 1px;
-      height: 10px;
-      left: 9px;
+      height: 50%;
+      left: 50%;
       position: relative;
     }
     #collision {
-      width: 20px;
-      height: 20px;
+      width: 12px;
+      height: 12px;
       background: transparent;
       border-radius:50%;
       border:1px solid white;
       position: absolute;
       left: 0px;
+      margin-left:-6px;
+      margin-top:-6px;
     }
   </style>
 </head>
@@ -109,7 +115,7 @@
   "      x           x x x  xxxxx        "
 ]
   let ballModel = {
-    r:10,
+    r:6,
     p: {
       x: 10,
       y: 10,
@@ -135,10 +141,33 @@
     //right:
     {min:{x:WIDTH,y:0},max:{x:WIDTH+10,y:HEIGHT}},
   ];
+  map=map.map(row=>row.split(''));
+  for(let r=0;r<map.length;++r){
+    for(let c=0;c<map[r].length;++c){
+      if(map[r][c]=='x'){
+        if(map[r][c+1]=='x'){
+          let e=c;
+          while(map[r][e]=='x'){
+            map[r][e]=' ';
+            e++;
+          }
+          boxes.push({min:{x:c*20,y:r*20},max:{x:e*20,y:(r+1)*20}})  
+        }else{
+          let e=r;
+          while(map[e]&&map[e][c]=='x'){
+            map[e][c]=' ';
+            e++;
+          }
+          boxes.push({min:{x:c*20,y:r*20},max:{x:(c+1)*20,y:e*20}})  
+        }
+      }
+    }
+  }
+  console.log(boxes.length)
   const arena=    document.getElementById('arena');
   arena.style.height =HEIGHT  + 'px';
   arena.style.width =WIDTH  + 'px';
-  boxes.forEach(box => {
+  /*boxes.forEach(box => {
     const boxElement=document.createElement('div');
     boxElement.className='box';
     boxElement.style.left = box.min.x + 'px';
@@ -146,7 +175,7 @@
     boxElement.style.width = box.max.x-box.min.x + 'px';
     boxElement.style.height = box.max.y-box.min.y + 'px';
     document.getElementById('arena').appendChild(boxElement);
-  })
+  })*/
   setInterval(() => {
     
       //nextCollisionWith({"r":20,"p":{"x":20,"y":20},"v":{"x":10,"y":10},"a":{"x":0,"y":2}},{"min":{"x":0,"y":200},"max":{"x":1000,"y":210}});
@@ -168,8 +197,8 @@
       const collision = boxes.map(box => nextCollisionWith(ballModel, box)).filter(c=>c).sort((a,b)=>a.t-b.t)[0];
       const collisionElement = document.getElementById('collision')
       if(collision){
-        collisionElement.style.left = collision.f.p.x - collision.f.r + 'px';
-        collisionElement.style.top = collision.f.p.y - collision.f.r + 'px';
+        collisionElement.style.left = collision.f.p.x  + 'px';
+        collisionElement.style.top = collision.f.p.y  + 'px';
         collisionElement.style.display='block';
         collisionElement.style.transform=`rotate(${Math.atan2(collision.normal.y,collision.normal.x)+Math.PI/2}rad)`;
       }else{
@@ -190,7 +219,7 @@
           audioElement.pause()
           audioElement.currentTime = 0.2;
           audioElement.volume = Math.min(energy/100,1.0);
-          audioElement.play();
+          audioElement.play().catch(()=>{});
           const spring = 1.5;
           ballModel.v = plus(ballModel.v, scale(-e*spring, collision.normal));
         }else{
@@ -206,8 +235,8 @@
       }
     }
     ballModel.a=originalAcceleration;
-    ballElement.style.left = ballModel.p.x - ballModel.r +"px";
-    ballElement.style.top = ballModel.p.y - ballModel.r +"px";
+    ballElement.style.left = ballModel.p.x  +"px";
+    ballElement.style.top = ballModel.p.y  +"px";
   },20)
 function evaluate(a,x){
   if(!Number.isFinite(x)){
