@@ -43,6 +43,9 @@
 const photo = document.getElementById('photo');
 const preview = document.getElementById('preview');
 const ctx = preview.getContext('2d');
+const avg = vs => vs.reduce((a,b)=>a+b,0)/vs.length;
+const max = vs => Math.max.apply(Math,vs);
+const min = vs => Math.min.apply(Math,vs);
 function drawDot(color,p){
   ctx.strokeStyle=color;
   ctx.beginPath();
@@ -76,16 +79,15 @@ function analyze(){
       for(let dx=-1;dx<=1;++dx){
         for(let dy=-1;dy<=1;++dy){
           const n=get(x+dx,y+dy);
-          const avg=n.reduce((a,b)=>a+b)/3;
-
           W.forEach((w,i)=>{
             const s=w[1+dy][1+dx];
-            n.forEach((v,j)=> {L[i][j]+=s*avg})
+            n.forEach((v,j)=> {L[i][j]+=s*v})
           })
         }
       }
+      const e = max(L[0].map((l,i)=> Math.sqrt(l**2+L[1][i]**2)) )
       for(let i=0;i<3;++i){
-        data[pos+i]=Math.sqrt(L[0][i]**2+L[1][i]**2);
+        data[pos+i]=e;
       }
     }
   }
