@@ -38,14 +38,12 @@
     <label for="columns">columns:</label><input type=number id="columns" value=38>
     <span id="status"></span>
   </body>
+  <script type="text/javascript" src="lib.js"></script>
   <script type="text/javascript">
 
 const photo = document.getElementById('photo');
 const preview = document.getElementById('preview');
 const ctx = preview.getContext('2d');
-const avg = vs => vs.reduce((a,b)=>a+b,0)/vs.length;
-const max = vs => Math.max.apply(Math,vs);
-const min = vs => Math.min.apply(Math,vs);
 function drawDot(color,p){
   ctx.strokeStyle=color;
   ctx.beginPath();
@@ -72,6 +70,7 @@ function analyze(){
   ];
   const WY = WX.map((row,i)=>row.map((v,j)=>WX[j][i]))
   const W=[WX,WY];
+  const es = [];
   for(let y=1;y+1<preview.height;++y){
     for(let x=1;x+1<preview.width;++x){
       const pos=(y*preview.width+x)*4;
@@ -85,9 +84,48 @@ function analyze(){
           })
         }
       }
-      const e = max(L[0].map((l,i)=> Math.sqrt(l**2+L[1][i]**2)) )
+      const e = max(L[0].map((l,i)=> Math.sqrt(l**2+L[1][i]**2)) );
+      es.push(e);
       for(let i=0;i<3;++i){
         data[pos+i]=e;
+      }
+    }
+  }
+  const threshold = split(es).threshold;
+  for(let y=1;y+1<preview.height;++y){
+    for(let x=1;x+1<preview.width;++x){
+      const pos=(y*preview.width+x)*4;
+      for(let i=0;i<3;++i){
+        data[pos+i]=data[pos+i]>threshold?255:0;
+      } 
+    }
+  }
+  let todo=[];
+  for(let y=preview.height>>2;y<preview.height*3>>2;++y){
+    for(let x=preview.width>>2;x<preview.width*3>>2;++x){
+      const pos=(y*preview.width+x)*4;
+      if(data[pos+0]){
+        data[pos+1]=0;
+        todo.push({x,y});
+      }
+    }
+  }
+
+  while(todo.length){
+    const {x,y}=todo.pop();
+    for(let dx=-2;dx<=2;++dx){
+      const x2=x+dx;
+      if(0<=x2 && x2<preview.width){
+        for(let dy=-2;dy<=2;++dy){
+          const y2=y+dy;
+          if(0<=y2 && y2<preview.height){
+            const pos=(y2*preview.width+x2)*4;
+            if(data[pos+0]&&data[pos+1]){
+              data[pos+1]=0;
+              todo.push({x:x2,y:y2});
+            }
+          }
+        }
       }
     }
   }
