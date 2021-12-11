@@ -71,9 +71,10 @@ function analyze(){
   const WY = WX.map((row,i)=>row.map((v,j)=>WX[j][i]))
   const W=[WX,WY];
   const es = [];
+  const xy2pos = (x,y)=>(y*preview.width+x)*4;
   for(let y=1;y+1<preview.height;++y){
     for(let x=1;x+1<preview.width;++x){
-      const pos=(y*preview.width+x)*4;
+      const pos=xy2pos(x,y);
       let L=[[0,0,0],[0,0,0]];
       for(let dx=-1;dx<=1;++dx){
         for(let dy=-1;dy<=1;++dy){
@@ -94,7 +95,7 @@ function analyze(){
   const threshold = split(es).threshold;
   for(let y=1;y+1<preview.height;++y){
     for(let x=1;x+1<preview.width;++x){
-      const pos=(y*preview.width+x)*4;
+      const pos=xy2pos(x,y);
       for(let i=0;i<3;++i){
         data[pos+i]=data[pos+i]>threshold?255:0;
       } 
@@ -103,7 +104,7 @@ function analyze(){
   let todo=[];
   for(let y=preview.height>>2;y<preview.height*3>>2;++y){
     for(let x=preview.width>>2;x<preview.width*3>>2;++x){
-      const pos=(y*preview.width+x)*4;
+      const pos=xy2pos(x,y);
       if(data[pos+0]){
         data[pos+1]=0;
         todo.push({x,y});
@@ -111,15 +112,23 @@ function analyze(){
     }
   }
 
+  let min_x = Array.from({length:preview.height},()=>+Infinity)
+  let max_x = Array.from({length:preview.height},()=>-Infinity)
+  let min_y = Array.from({length:preview.width},()=>+Infinity)
+  let max_y = Array.from({length:preview.width},()=>-Infinity)
   while(todo.length){
     const {x,y}=todo.pop();
+    if(x<min_x[y])min_x[y]=x;
+    if(max_x[y]<x)max_x[y]=x;
+    if(y<min_y[x])min_y[x]=y;
+    if(max_y[x]<y)max_y[x]=y;
     for(let dx=-2;dx<=2;++dx){
       const x2=x+dx;
       if(0<=x2 && x2<preview.width){
         for(let dy=-2;dy<=2;++dy){
           const y2=y+dy;
           if(0<=y2 && y2<preview.height){
-            const pos=(y2*preview.width+x2)*4;
+            const pos=xy2pos(x2,y2);
             if(data[pos+0]&&data[pos+1]){
               data[pos+1]=0;
               todo.push({x:x2,y:y2});
@@ -129,6 +138,34 @@ function analyze(){
       }
     }
   }
+  const border=[];
+  const submit=(x,y)=>{
+    const pos = xy2pos(x,y);
+    if(data[pos+2]){
+      data[pos+2]=0;
+      border.push({x,y});
+    }
+  }
+  min_x.forEach((x,y)=>{if(x!=+Infinity){submit(x,y)}})
+  max_x.forEach((x,y)=>{if(x!=-Infinity){submit(x,y)}})
+  min_y.forEach((y,x)=>{if(y!=+Infinity){submit(x,y)}})
+  max_y.forEach((y,x)=>{if(y!=-Infinity){submit(x,y)}})
+  for(let y=1;y+1<preview.height;++y){
+    for(let x=1;x+1<preview.width;++x){
+      const pos=xy2pos(x,y);
+      if(!data[pos+0]||data[pos+1]||data[pos+2]){
+        data[pos+0]=data[pos+1]=data[pos+2]=0;
+      }
+    }
+  }
+  console.log(border.length);
+  border.sort((a,b)=> Math.atan2(a.y-preview.height/2,a.x-preview.width/2)-Math.atan2(b.y-preview.height/2,b.x-preview.width/2))
+  /*
+  border.forEach(({x,y},i)=>{
+    const pos=xy2pos(x,y);
+    data[pos+0]=i%256;
+  })
+*/
   ctx.putImageData(imageData,0,0)
 }
 photo.addEventListener('load',()=>{
