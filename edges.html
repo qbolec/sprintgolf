@@ -160,12 +160,69 @@ function analyze(){
   }
   console.log(border.length);
   border.sort((a,b)=> Math.atan2(a.y-preview.height/2,a.x-preview.width/2)-Math.atan2(b.y-preview.height/2,b.x-preview.width/2))
-  /*
-  border.forEach(({x,y},i)=>{
-    const pos=xy2pos(x,y);
-    data[pos+0]=i%256;
+  const lowest=-preview.width;
+  const highest=Math.sqrt(preview.width**2+preview.height**2);
+  const span=highest-lowest;
+  const huogh=Array.from({length:180},(_,i)=>{
+    const a=Math.PI*i/180;
+    const c=Math.cos(a);
+    const s=Math.sin(a);
+    const shadows=Array.from({length:span},()=>0)
+    border.forEach(({x,y})=>shadows[ Math.round(x*c+y*s) - lowest]++)
+    return shadows;
   })
-*/
+  for(let y=0;y<preview.height;++y){
+    for(let x=0;x<preview.width;++x){
+      const pos=xy2pos(x,y);
+      data[pos+2]=huogh[Math.floor(y*180/preview.height)][Math.floor(x*span/preview.width)]
+    }
+  }
+  const localOptima=[];
+  huogh.forEach((offsets,deg)=>offsets.forEach((cnt,off)=>{
+    if(cnt<2){
+      return;
+    }
+    for(let dd=-3;dd<=3;++dd){
+      let deg2=deg+dd;
+      if(deg2<0)deg2+=180;
+      if(180<=deg2)deg2-=180;
+      for(let doff=-5;doff<=5;++doff){
+        const off2=off+doff;
+        if(0<=off2 && off2<span){
+          if(cnt<huogh[deg2][off2]){
+            return;
+          }
+        }
+      }
+    }
+    localOptima.push({deg,off});
+  }))
+  localOptima.sort((a,b)=>huogh[a.deg][a.off]-huogh[b.deg][b.off])
+  let sides=[];
+  for(let i=0;i<4;++i){
+    do{
+      const best=localOptima.pop();
+      if(sides.some((v)=> Math.abs(v.off-best.off)<10 && modDist(v.deg,best.deg,180)<10  )){
+        continue;
+      }
+      const a=Math.PI*best.deg/180;
+      sides.push({
+        ...best,
+        a,
+        y:Math.sin(a),
+        x:Math.cos(a),
+      });
+    }while(false)
+  }
+  console.log(sides);
+  for(let y=0;y<preview.height;++y){
+    for(let x=0;x<preview.width;++x){
+      if(sides.some((side)=> Math.abs(x*side.x+y*side.y-(side.off+lowest))<=1)){
+        const pos=xy2pos(x,y);
+        data[pos+1]=255;
+      }
+    }
+  }
   ctx.putImageData(imageData,0,0)
 }
 photo.addEventListener('load',()=>{

@@ -29,3 +29,7 @@ function split(vs){
   res.mid = (res.low + res.hi)/2;
   return res;
 }
+function modDist(a,b,m){
+  const d=Math.abs(a-b);
+  return Math.min(d,m-d);
+}
