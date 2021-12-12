@@ -108,3 +108,39 @@ function optimalLine(points){
   const off = (Sx*Math.cos(ang)+Sy*Math.sin(ang))/n;
   return {a:ang,off,x:Math.cos(ang),y:Math.sin(ang)};
 }
+function solve(A,b){
+  A=A.map(row=>row.slice(0));
+  b=b.slice(0)
+  //Ax=b
+  const vars_num=A[0].length;
+  const eq_num=A.length;
+  for(let c=0;c<vars_num;++c){
+    let best_r = c;
+    for(let r=c+1;r<eq_num;++r){
+      if(Math.abs(A[best_r][c])<Math.abs(A[r][c])){
+        best_r=r;
+      }
+    }
+    {
+      let r=c;
+      let tmp_row=A[r];
+      A[r]=A[best_r];
+      A[best_r]=tmp_row;
+      let tmp=b[r];
+      b[r]=b[best_r];
+      b[best_r]=tmp;
+    }
+    for(let r=0;r<eq_num;++r)if(r!=c){
+      const s=A[r][c]/A[c][c];
+      for(let i=0;i<vars_num;++i){
+        A[r][i]-= A[c][i]*s;
+      }
+      b[r]-=b[c]*s;
+    }
+  }
+  let solution=[];
+  for(let v=0;v<vars_num;++v){
+    solution[v]=b[v]/A[v][v]
+  }
+  return solution;
+}
