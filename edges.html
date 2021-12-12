@@ -337,6 +337,12 @@ function getCorners(){
     drawDot('green',corner);
   });
   console.log(corners)
+  //Don't full ourselves that we know which side is which...
+  //All we know they are ordered by angle, but the list can be "rotated".
+  //To test for robustness, we can rotate the list random number of times.
+  //for(let i=0;i<3;++i){
+  //  corners.push(corners.shift());
+  //}
   return corners;
 }
 function project(understanding,p){
@@ -415,8 +421,8 @@ function getGridSize(corners){
     const p={x:e.offsetX,y:e.offsetY};
     const ij=toIJ(simple.A_inv,p);
 
-    document.getElementById('rows').value=ij.x;
-    document.getElementById('columns').value=ij.y;
+    // document.getElementById('rows').value=ij.x;
+    // document.getElementById('columns').value=ij.y;
   })
   const DIMS=['x','y'];
   const FT=DIMS.map(dim => Array.from({length:50},(_,i)=>({dim,n:i+5,period:1/(i+5),scale:Math.PI*2*(i+5),x:0,y:0})));
@@ -430,21 +436,40 @@ function getGridSize(corners){
           FT[i].forEach(hypothesis=>{
             const a= ij[dim]*hypothesis.scale;
             hypothesis.x += Math.cos(a)*e;
-            hypothesis.y += Math.sin(a)*e;
+            // hypothesis.y += Math.sin(a)*e;
           })
         })
       } 
     }
   }
-  DIMS.forEach((dim,i)=>{
-    const bestJ=FT[i].map((hypothesis,j)=>[length(hypothesis),j]).sort((a,b)=>b[0]-a[0])[0][1];
-    const best=FT[i][bestJ];
+  const [x,y]=DIMS.map((dim,i)=>{
+    // FT[i].forEach(hypothesis=>{hypothesis.length=length(hypothesis)})
+    //Actually, because grid lines on the paper appear at the boundaries of periods,
+    //we could use "Discrete Cosine Transform" instead of "Discrete Fourier Transform",
+    //in other words, sort by ".x" field, not ".length", and get the same result.
+    //This is because `cos` has largest values near 0 and 2PI, and the whole Fourier/length 
+    //thing is only really needed when we don't know at what offset the peaks occur.
+    //OTOH trying to use .y will lead to disaster, as `sin`'s maximum happens in not useful place.
+    // const best=FT[i].sort((a,b)=>b.length-a.length)[0];
+    const best=FT[i].sort((a,b)=>b.x-a.x)[0];
     console.log(best);
+    return best.n;
   });
+  console.log(FT)
+  return {x,y};
 }
 function analyze(){
   const corners=getCorners();
-  getGridSize(corners);
+  const gridSize=getGridSize(corners);
+  const understanding = understand(gridSize,corners);
+  preview.addEventListener('mousemove',(e)=>{
+    const p={x:e.offsetX,y:e.offsetY};
+    const ij=toIJ(understanding.A_inv,p);
+
+    document.getElementById('rows').value=ij.x;
+    document.getElementById('columns').value=ij.y;
+  })
+  
 }
 
 if(photo.complete){
