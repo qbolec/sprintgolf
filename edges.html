@@ -93,15 +93,19 @@ function analyze(){
     }
   }
   const threshold = split(es).threshold;
+  console.log(`threshold ${threshold}`);
+  let above=0;
   for(let y=1;y+1<preview.height;++y){
     for(let x=1;x+1<preview.width;++x){
       const pos=xy2pos(x,y);
       for(let i=0;i<3;++i){
-        data[pos+i]=data[pos+i]>threshold?255:0;
+        const isAbove=data[pos+i]>threshold;
+        above+=isAbove;
+        data[pos+i]=255*isAbove;
       } 
     }
   }
-
+  console.log(`above ${above}`)
   let todo=[];
   for(let y=preview.height>>2;y<preview.height*3>>2;++y){
     for(let x=preview.width>>2;x<preview.width*3>>2;++x){
@@ -117,7 +121,9 @@ function analyze(){
   let max_x = Array.from({length:preview.height},()=>-Infinity)
   let min_y = Array.from({length:preview.width},()=>+Infinity)
   let max_y = Array.from({length:preview.width},()=>-Infinity)
+  let processed=0;
   while(todo.length){
+    processed++;
     const {x,y}=todo.pop();
     if(x<min_x[y])min_x[y]=x;
     if(max_x[y]<x)max_x[y]=x;
@@ -139,6 +145,7 @@ function analyze(){
       }
     }
   }
+  console.log(`processed ${processed}`);
   const border=[];
   const submit=(x,y)=>{
     const pos = xy2pos(x,y);
@@ -183,7 +190,6 @@ function analyze(){
       data[pos+2]=huogh[Math.floor(y*180/preview.height)][Math.floor(x*span/preview.width)]
     }
   }
-  //TODO: when the angle wraprs over 180 degrees, the offset should become negative, and so it's not the same!
   const localOptima=[];
   const mirrorOff = (off) => -(off+lowest)-lowest;
   {
@@ -216,34 +222,45 @@ function analyze(){
           }
         }
       }
+      const pos=xy2pos(Math.floor(off*preview.width/span),Math.floor(deg*preview.height/180));
+      // data[pos+0]=data[pos+2];
+      data[pos+0]=huogh[deg][off];
+      data[pos+2]=0;
       localOptima.push({deg,off,cnt});
     }))
   }
+  
   localOptima.sort((a,b)=>a.cnt-b.cnt)
   let sides=[];
+  const SUPPRESS_DEG=10;
+  const SUPPRESS_OFF=10;
   for(let i=0;i<4;++i){
-    do{
+    while(localOptima.length){
       const best=localOptima.pop();
-      if(sides.some((v)=> {
+      if(!sides.some((v,j)=> {
         let degDiff=Math.abs(v.deg-best.deg);
         let offDiff=Math.abs(v.off-best.off);
         if(degDiff>90){
           degDiff=180-degDiff;
           offDiff=Math.abs(v.off-mirrorOff(best.off))
         }
-        return degDiff < 10 && offDiff<10
+        console.log(i,j,degDiff,offDiff);
+        return degDiff < SUPPRESS_DEG && offDiff<SUPPRESS_OFF
       })){
-        continue;
+        sides.push(best);
+        break;
       }
-      const a=Math.PI*best.deg/180;
-      sides.push({
-        off:best.off+lowest,
-        a,
-        y:Math.sin(a),
-        x:Math.cos(a),
-      });
-    }while(false)
+    }
   }
+  sides = sides.map(side => {
+    const a=Math.PI*side.deg/180;
+    return ({
+      off:side.off+lowest,
+      a,
+      y:Math.sin(a),
+      x:Math.cos(a),
+    });
+  });
   console.log(sides);
   for(let y=0;y<preview.height;++y){
     for(let x=0;x<preview.width;++x){
@@ -253,6 +270,7 @@ function analyze(){
       }
     }
   }
+  
   for(let iter=0;iter<3;++iter){
     let sidesSamples=sides.map(()=>[])
     border.forEach(({x,y})=>{
@@ -305,10 +323,14 @@ function analyze(){
   corners.forEach(corner=>{
     drawDot('green',corner);
   });
-
+  console.log(corners)
 }
-photo.addEventListener('load',()=>{
+if(photo.complete){
   analyze();
-})
+}else{
+  photo.addEventListener('load',()=>{
+    analyze();
+  })
+}
   </script>
 </html>
