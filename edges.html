@@ -50,16 +50,19 @@ function drawDot(color,p){
   ctx.rect(p.x-1, p.y-1,3,3);
   ctx.stroke();
 }
-function analyze(){
+function drawEdges(){
   ctx.drawImage(
     photo, 
     0, 0, photo.width, photo.height
   );
-  const imageData=ctx.getImageData(0,0,preview.width,preview.height);
+  // According to Chorme's profiler getting preview.width takes a lot of time
+  const size={x:preview.width,y:preview.height};
+
+  const imageData=ctx.getImageData(0,0,size.x,size.y);
   const data = imageData.data;
   const cloned = new Uint8ClampedArray(data);
   const get = (x,y) => {
-    const pos=y*preview.width*4+4*x;
+    const pos=y*size.x*4+4*x;
     const colors = [cloned[pos+0],cloned[pos+1],cloned[pos+2]]
     return colors;
   }
@@ -71,9 +74,9 @@ function analyze(){
   const WY = WX.map((row,i)=>row.map((v,j)=>WX[j][i]))
   const W=[WX,WY];
   const es = [];
-  const xy2pos = (x,y)=>(y*preview.width+x)*4;
-  for(let y=1;y+1<preview.height;++y){
-    for(let x=1;x+1<preview.width;++x){
+  const xy2pos = (x,y)=>(y*size.x+x)*4;
+  for(let y=1;y+1<size.y;++y){
+    for(let x=1;x+1<size.x;++x){
       const pos=xy2pos(x,y);
       let L=[[0,0,0],[0,0,0]];
       for(let dx=-1;dx<=1;++dx){
@@ -92,11 +95,21 @@ function analyze(){
       }
     }
   }
+  return {
+    size,
+    imageData,
+    data,
+    es,
+    xy2pos,
+  }
+}
+function getCorners(){
+  const {size,imageData,data,es,xy2pos}=drawEdges();
   const threshold = split(es).threshold;
   console.log(`threshold ${threshold}`);
   let above=0;
-  for(let y=1;y+1<preview.height;++y){
-    for(let x=1;x+1<preview.width;++x){
+  for(let y=1;y+1<size.y;++y){
+    for(let x=1;x+1<size.x;++x){
       const pos=xy2pos(x,y);
       for(let i=0;i<3;++i){
         const isAbove=data[pos+i]>threshold;
@@ -107,8 +120,8 @@ function analyze(){
   }
   console.log(`above ${above}`)
   let todo=[];
-  for(let y=preview.height>>2;y<preview.height*3>>2;++y){
-    for(let x=preview.width>>2;x<preview.width*3>>2;++x){
+  for(let y=size.y>>2;y<size.y*3>>2;++y){
+    for(let x=size.x>>2;x<size.x*3>>2;++x){
       const pos=xy2pos(x,y);
       if(data[pos+0]){
         data[pos+1]=0;
@@ -117,10 +130,10 @@ function analyze(){
     }
   }
 
-  let min_x = Array.from({length:preview.height},()=>+Infinity)
-  let max_x = Array.from({length:preview.height},()=>-Infinity)
-  let min_y = Array.from({length:preview.width},()=>+Infinity)
-  let max_y = Array.from({length:preview.width},()=>-Infinity)
+  let min_x = Array.from({length:size.y},()=>+Infinity)
+  let max_x = Array.from({length:size.y},()=>-Infinity)
+  let min_y = Array.from({length:size.x},()=>+Infinity)
+  let max_y = Array.from({length:size.x},()=>-Infinity)
   let processed=0;
   while(todo.length){
     processed++;
@@ -131,10 +144,10 @@ function analyze(){
     if(max_y[x]<y)max_y[x]=y;
     for(let dx=-2;dx<=2;++dx){
       const x2=x+dx;
-      if(0<=x2 && x2<preview.width){
+      if(0<=x2 && x2<size.x){
         for(let dy=-2;dy<=2;++dy){
           const y2=y+dy;
-          if(0<=y2 && y2<preview.height){
+          if(0<=y2 && y2<size.y){
             const pos=xy2pos(x2,y2);
             if(data[pos+0]&&data[pos+1]){
               data[pos+1]=0;
@@ -158,8 +171,8 @@ function analyze(){
   max_x.forEach((x,y)=>{if(x!=-Infinity){submit(x,y)}})
   min_y.forEach((y,x)=>{if(y!=+Infinity){submit(x,y)}})
   max_y.forEach((y,x)=>{if(y!=-Infinity){submit(x,y)}})
-  for(let y=1;y+1<preview.height;++y){
-    for(let x=1;x+1<preview.width;++x){
+  for(let y=1;y+1<size.y;++y){
+    for(let x=1;x+1<size.x;++x){
       const pos=xy2pos(x,y);
       if(!data[pos+0]||data[pos+1]||data[pos+2]){
         data[pos+0]=data[pos+1]=data[pos+2]=0;
@@ -167,9 +180,9 @@ function analyze(){
     }
   }
   console.log(border.length);
-  border.sort((a,b)=> Math.atan2(a.y-preview.height/2,a.x-preview.width/2)-Math.atan2(b.y-preview.height/2,b.x-preview.width/2))
-  const diagonal=Math.sqrt(preview.width**2+preview.height**2);
-  const lowest=-preview.width;
+  border.sort((a,b)=> Math.atan2(a.y-size.y/2,a.x-size.x/2)-Math.atan2(b.y-size.y/2,b.x-size.x/2))
+  const diagonal=Math.sqrt(size.x**2+size.y**2);
+  const lowest=-size.x;
   const highest=diagonal;
   const span=highest-lowest;
   const huogh=Array.from({length:180},(_,i)=>{
@@ -184,10 +197,10 @@ function analyze(){
     })
     return shadows;
   })
-  for(let y=0;y<preview.height;++y){
-    for(let x=0;x<preview.width;++x){
+  for(let y=0;y<size.y;++y){
+    for(let x=0;x<size.x;++x){
       const pos=xy2pos(x,y);
-      data[pos+2]=huogh[Math.floor(y*180/preview.height)][Math.floor(x*span/preview.width)]
+      data[pos+2]=huogh[Math.floor(y*180/size.y)][Math.floor(x*span/size.x)]
     }
   }
   const localOptima=[];
@@ -222,7 +235,7 @@ function analyze(){
           }
         }
       }
-      const pos=xy2pos(Math.floor(off*preview.width/span),Math.floor(deg*preview.height/180));
+      const pos=xy2pos(Math.floor(off*size.x/span),Math.floor(deg*size.y/180));
       // data[pos+0]=data[pos+2];
       data[pos+0]=huogh[deg][off];
       data[pos+2]=0;
@@ -262,8 +275,8 @@ function analyze(){
     });
   });
   console.log(sides);
-  for(let y=0;y<preview.height;++y){
-    for(let x=0;x<preview.width;++x){
+  for(let y=0;y<size.y;++y){
+    for(let x=0;x<size.x;++x){
       if(sides.some((side)=> Math.abs(x*side.x+y*side.y-side.off)<1)){
         const pos=xy2pos(x,y);
         // data[pos+1]=255;
@@ -287,15 +300,15 @@ function analyze(){
     })
     sides=newSides; 
   }
-  const center={x:preview.width/2,y:preview.height/2};
+  const center={x:size.x/2,y:size.y/2};
   sides=sides.map(side=>{
     const off=side.off-scalar(side,center)
     const a = off<0 ? side.a+Math.PI: side.a;
     return [a,side];
   }).sort((a,b)=>a[0]-b[0]).map(a=>a[1])
 
-  for(let y=0;y<preview.height;++y){
-    for(let x=0;x<preview.width;++x){
+  for(let y=0;y<size.y;++y){
+    for(let x=0;x<size.x;++x){
       const nearestI=sides.findIndex((side)=> Math.abs(x*side.x+y*side.y-side.off)<1);
       if(-1<nearestI){
         const pos=xy2pos(x,y);
@@ -324,7 +337,116 @@ function analyze(){
     drawDot('green',corner);
   });
   console.log(corners)
+  return corners;
 }
+function project(understanding,p){
+  const C=understanding.u.z*p.x+understanding.v.z*p.y+1;
+  if(C<=0)return {x:NaN,y:NaN};
+  return {
+    x: (understanding.u.x*p.x+understanding.v.x*p.y+understanding.o.x)/C,
+    y: (understanding.u.y*p.x+understanding.v.y*p.y+understanding.o.y)/C,
+  }
+}
+function invert(A){
+  let A_inv=A.map(()=>A.map(()=>0));
+  for(let i=0;i<A.length;i++){
+    solve(A,A.map((_,j)=>i==j?1:0)).forEach((v,j)=>A_inv[j][i]=v)
+  }
+  return A_inv;
+}
+function vector_mul_vector (a,b) {
+  return a.reduce((sum,v,i)=>sum+v*b[i],0);
+}
+function matrix_mul_vector(A,v){
+  return A.map(row=>vector_mul_vector(row,v));
+}
+function getMatrices(understanding){
+  const A = [
+    [understanding.u.x,understanding.v.x,understanding.o.x],
+    [understanding.u.y,understanding.v.y,understanding.o.y],
+    [understanding.u.z,understanding.v.z,1],
+  ];
+  const A_inv=invert(A);
+  return {A,A_inv};
+}
+function toIJ(A_inv,ip){
+  const h=matrix_mul_vector(A_inv,[ip.x,ip.y,1]);
+  return {x:h[0]/h[2],y:h[1]/h[2]};
+}
+function understand(rect_size,clicked_points){
+  let ij=[
+    [0,0],
+    [0,rect_size.y],
+    [rect_size.x,rect_size.y],
+    [rect_size.x,0],
+  ];
+  let A=[];
+  let b=[];
+  for(var t=0;t<4;++t){
+    const x=clicked_points[t].x;
+    const y=clicked_points[t].y;
+    const i=ij[t][0];
+    const j=ij[t][1];
+    //  u.x*i  + v.x*j + o.x = (u.z*i + v.z*j + 1)*clicked_point.x
+    //  u.y*i  + v.y*j + o.y = (u.z*i + v.z*j + 1)*clicked_point.y
+    //      u.x, u.y,  u.z, v.x, v.y,  v.z, o.x, o.y
+    A.push([  i,   0, -i*x,   j,   0, -j*x,   1,   0  ] );
+    b.push(x);
+    A.push([  0,   i, -i*y,   0,   j, -j*y,   0,   1  ] );
+    b.push(y);
+  }
+  const s=solve(A,b);
+  const vectors = {
+    u:{x: s[0], y:s[1], z:s[2]},
+    v:{x: s[3], y:s[4], z:s[5]},
+    o:{x: s[6], y:s[7]},
+  }
+  return {
+    ...getMatrices(vectors),
+    vectors,
+  }
+}
+function getGridSize(corners){
+  // first, we don't know how many rows and columns are there, so we will just pretend it's 1x1
+  const simple= understand({x:1,y:1},corners);
+  const {imageData,data,xy2pos,size}=drawEdges();
+  ctx.putImageData(imageData,0,0);
+  preview.addEventListener('mousemove',(e)=>{
+    const p={x:e.offsetX,y:e.offsetY};
+    const ij=toIJ(simple.A_inv,p);
+
+    document.getElementById('rows').value=ij.x;
+    document.getElementById('columns').value=ij.y;
+  })
+  const DIMS=['x','y'];
+  const FT=DIMS.map(dim => Array.from({length:50},(_,i)=>({dim,n:i+5,period:1/(i+5),scale:Math.PI*2*(i+5),x:0,y:0})));
+  for(let y=0;y<size.y;++y){
+    for(let x=0;x<size.x;++x){
+      const pos=xy2pos(x,y);
+      const e = data[pos+0];
+      const ij=toIJ(simple.A_inv,{x,y});
+      if(0<=ij.x && ij.x <=1 && 0<=ij.y && ij.y<=1){
+        DIMS.forEach((dim,i)=>{
+          FT[i].forEach(hypothesis=>{
+            const a= ij[dim]*hypothesis.scale;
+            hypothesis.x += Math.cos(a)*e;
+            hypothesis.y += Math.sin(a)*e;
+          })
+        })
+      } 
+    }
+  }
+  DIMS.forEach((dim,i)=>{
+    const bestJ=FT[i].map((hypothesis,j)=>[length(hypothesis),j]).sort((a,b)=>b[0]-a[0])[0][1];
+    const best=FT[i][bestJ];
+    console.log(best);
+  });
+}
+function analyze(){
+  const corners=getCorners();
+  getGridSize(corners);
+}
+
 if(photo.complete){
   analyze();
 }else{
