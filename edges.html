@@ -6,45 +6,126 @@
       *{
         box-sizing:border-box;
       }
-      body {
-        margin:0;
-        padding:0;
-        background: brown;
-      }
       #desktop{
-        position: relative;;
-        height:600px;  
-        width:800px;  
+        position: relative;
+        width: 800px;
+        height: 600px;
       }
       #preview,
       #photo{
         position: absolute;
-        height:100%;  
-        width:100%;  
+        height:600px;  
+        width:800px;  
         top:0px;
         left:0px;
       }
       #photo{
-        /*display: none;*/
         transform-origin:0 0;
+      }
+      body {
+        margin:0;
+        padding:0;
+        background: black;
+        overflow: hidden;
+      }
+      #arena {
+        background: #750202;
+        transition: transform 1s;
+        margin: 30px auto;
+        position: relative;
+        transform: perspective(500px)
+      }
+      #arena.ArrowUp{
+        transform: perspective(500px) rotateX(10deg)
+      }
+      #arena.ArrowDown{
+        transform: perspective(500px) rotateX(-10deg)
+      }
+      #arena.ArrowLeft{
+        transform: perspective(500px) rotateY(-10deg)
+      }
+      #arena.ArrowRight{
+        transform: perspective(500px) rotateY(10deg)
+      }
+      .box {
+        background: white;
+        position: absolute;
+      }
+      #ball {
+        width: 12px;
+        height: 12px;
+        background: radial-gradient(circle at 30% 30%, white, black);
+        border-radius:50%;
+        position: absolute;
+        left: 0px;
+        margin-left:-6px;
+        margin-top:-6px;
+      }
+      #collision::after {
+        content: " ";
+        display: block;
+        background: yellow;
+        width: 1px;
+        height: 50%;
+        left: 50%;
+        position: relative;
+      }
+      #collision {
+        width: 12px;
+        height: 12px;
+        background: transparent;
+        border-radius:50%;
+        border:1px solid white;
+        position: absolute;
+        left: 0px;
+        margin-left:-6px;
+        margin-top:-6px;
+        display: none;
+      }
+      #futureBox{
+        position: absolute;
+        border:1px solid red;
+        display: none;
+      }
+      #reading{
+        position: fixed;
+        top:10px;
+        left:10px;
+        color:red;
+      }
+      label,input{
+        display: none;
       }
     </style>
   </head>
   <body>
-    <div id="desktop">
-      <img id="photo" src="labirynt Hugo.jpg"/>
-      <canvas id="preview" width="800" height="600"/>
+    <audio src="ping.ogg"></audio>
+    <audio src="ping.ogg"></audio>
+    <audio src="ping.ogg"></audio>
+    <div id="arena">
+        <img id="photo" src="labirynt Hugo.jpg"/>
+        <canvas id="preview" width="800" height="600"></canvas>
+      <div id="ball"></div>
+      <div id="collision"></div>
+      <div id="futureBox"></div>
     </div>
+    <div id="reading"></div>
+
     <label for="rows">rows:</label><input type=number id="rows" value=25>
     <label for="columns">columns:</label><input type=number id="columns" value=38>
-    <span id="status"></span>
+
+
   </body>
   <script type="text/javascript" src="lib.js"></script>
   <script type="text/javascript">
 
 const photo = document.getElementById('photo');
 const preview = document.getElementById('preview');
+const arena = document.getElementById('arena');
 const ctx = preview.getContext('2d');
+const ballElement = document.getElementById('ball');
+const audioElements = document.querySelectorAll('audio');
+
 function drawDot(color,p){
   ctx.strokeStyle=color;
   ctx.beginPath();
@@ -541,6 +622,8 @@ function projectionToMatrix3d(A_inv,s){
     A_inv[0][2]*s.x,A_inv[1][2]*s.y,0,A_inv[2][2],
   ].join(',')
 }
+const cellSize={x:20,y:20};
+
 function analyze(){
   const corners=getCorners();
   const gridSize=getGridSize(corners);
@@ -553,10 +636,249 @@ function analyze(){
     document.getElementById('columns').value=ij.y;
   })
   const taken=classifyFields(gridSize,understanding);
-  const matrix3d=projectionToMatrix3d(understanding.A_inv,{x:20,y:20});
+  const matrix3d=projectionToMatrix3d(understanding.A_inv,cellSize);
   photo.style.transform = `matrix3d(${matrix3d})`;
   preview.style.display = 'none';
+  play(taken);
 }
+
+function play(map){
+  let nextAudioElementIdx = 0;
+  let ballModel = {
+    r:6,
+    p: {
+      x: 10,
+      y: 10,
+    },
+    v: {
+      x: 10,
+      y: 10,
+    },
+    a: {
+      x:0,
+      y:2,
+    }
+  };
+  const HEIGHT = 20*map.length;
+  const WIDTH = 20*map[0].length;
+  const boxes = [
+    //bottom
+    {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}},
+    //top:
+    {min:{x:0,y:-10},max:{x:WIDTH,y:0}},
+    //left:
+    {min:{x:-10,y:0},max:{x:0,y:HEIGHT}},
+    //right:
+    {min:{x:WIDTH,y:0},max:{x:WIDTH+10,y:HEIGHT}},
+  ];
+  map=map.map(row=>row.slice(0));
+  for(let r=0;r<map.length;++r){
+    for(let c=0;c<map[r].length;++c){
+      if(map[r][c]){
+        if(map[r][c+1]){
+          let e=c;
+          while(map[r][e]){
+            map[r][e]=false;
+            e++;
+          }
+          boxes.push({min:{x:c*20,y:r*20},max:{x:e*20,y:(r+1)*20}})  
+        }else{
+          let e=r;
+          while(map[e]&&map[e][c]){
+            map[e][c]=false;
+            e++;
+          }
+          boxes.push({min:{x:c*20,y:r*20},max:{x:(c+1)*20,y:e*20}})  
+        }
+      }
+    }
+  }
+  console.log(boxes.length)
+  arena.style.height =HEIGHT  + 'px';
+  arena.style.width =WIDTH  + 'px';
+  /*boxes.forEach(box => {
+    const boxElement=document.createElement('div');
+    boxElement.className='box';
+    boxElement.style.left = box.min.x + 'px';
+    boxElement.style.top = box.min.y + 'px';
+    boxElement.style.width = box.max.x-box.min.x + 'px';
+    boxElement.style.height = box.max.y-box.min.y + 'px';
+    document.getElementById('arena').appendChild(boxElement);
+  })*/
+  setInterval(() => {
+    
+      //nextCollisionWith({"r":20,"p":{"x":20,"y":20},"v":{"x":10,"y":10},"a":{"x":0,"y":2}},{"min":{"x":0,"y":200},"max":{"x":1000,"y":210}});
+      //zeros([40,10,0])
+      //zeros([10,0])
+    let t = 1;
+    function advance(t){
+      if(WIDTH<plus(plus(ballModel.p, scale(t,ballModel.v)), scale(t*t/2,ballModel.a)).x){
+        debugger;
+      }
+      ballModel.p = plus(plus(ballModel.p, scale(t,ballModel.v)), scale(t*t/2,ballModel.a));
+      ballModel.v = plus(ballModel.v, scale(t,ballModel.a));
+      ['x','y'].forEach(d=>{if(!zign(ballModel.v[d])){
+        ballModel.v[d]=0
+      }});
+    }
+    const originalAcceleration = ballModel.a;
+    const futureBoxElement=document.getElementById('futureBox');
+    const collisionElement = document.getElementById('collision')
+    for(let i=0;i<1000&&0<t;++i){
+      const futureBox = {min:{},max:{}};
+      ['x','y'].forEach(dir=>{
+        const formula = [ballModel.p[dir],ballModel.v[dir],0.5*ballModel.a[dir]];
+        const candidates = [0,t,...zeros(derivative(formula),0).filter(m=>0<m && m<t)].map(m=>evaluate(formula,m));
+        futureBox.max[dir]=Math.max.apply(Math,candidates)+ballModel.r;
+        futureBox.min[dir]=Math.min.apply(Math,candidates)-ballModel.r;
+      });
+      futureBoxElement.style.left=futureBox.min.x + 'px';
+      futureBoxElement.style.top=futureBox.min.y + 'px';
+      futureBoxElement.style.width=futureBox.max.x-futureBox.min.x + 'px';
+      futureBoxElement.style.height=futureBox.max.y-futureBox.min.y + 'px';
+
+      const collision = boxes.filter(box=>boxesIntesect(box,futureBox)).map(box => nextCollisionWith(ballModel, box)).filter(c=>c).sort((a,b)=>a.t-b.t)[0];
+      if(collision){
+        collisionElement.style.left = collision.f.p.x  + 'px';
+        collisionElement.style.top = collision.f.p.y  + 'px';
+        collisionElement.style.display='block';
+        collisionElement.style.transform=`rotate(${Math.atan2(collision.normal.y,collision.normal.x)+Math.PI/2}rad)`;
+      }else{
+        collisionElement.style.display='none';
+      }
+      
+      //remove these lines for debug:
+      collisionElement.style.display='none';
+      futureBoxElement.style.display='none';
+
+      if(collision && 0<=collision.t && collision.t <= t){
+        const delta=collision.t;
+        advance(delta);
+        if(10<i){
+          //ok, this is getting problematic...
+          //let's pretend there's no acceleration for a moment
+          ballModel.a = {x:0,y:0};
+        }
+        const e=scalar(collision.normal,ballModel.v)
+        if(e<0){
+          const energy = -e
+          const audioElement = audioElements[nextAudioElementIdx++%audioElements.length];
+          audioElement.pause()
+          audioElement.currentTime = 0.2;
+          audioElement.volume = Math.min(energy/100,1.0);
+          audioElement.play().catch(()=>{});
+          const spring = 1.6;
+          ballModel.v = plus(ballModel.v, scale(-e*spring, collision.normal));
+        }else{
+          console.log("wrongly filtered collision?",collision)
+        }
+        t-= delta;
+      }else{
+        advance(t);
+        t-=t;
+      }
+      if(i==999){
+        debugger;
+      }
+    }
+    ballModel.a=originalAcceleration;
+    ballElement.style.left = ballModel.p.x  +"px";
+    ballElement.style.top = ballModel.p.y  +"px";
+  },20)
+  function nextCollisionWith({r,p,v,a},box){
+    const future = t => ({r:r,a:a,v:plus(v,scale(t,a)), p:plus(plus(p, scale(t,v) ), scale(t*t/2,a) )})
+    let collision = null;
+    function check(eq,hit,state2normal){
+      zeros(eq).filter(t => 0<=t).forEach(t => {
+        const f = future(t);
+        if(hit(f)){
+          const normal = state2normal(f)
+          if(scalar(f.v,normal)<0){
+            if(!collision || t<collision.t){
+              collision = {t,f,normal};
+            }
+          }
+        }
+      })
+    }
+    check([p.x+r-box.min.x, v.x, a.x/2],({p})=>box.min.y<=p.y && p.y<=box.max.y,always({x:-1,y:0}));
+    check([p.x-r-box.max.x, v.x, a.x/2],({p})=>box.min.y<=p.y && p.y<=box.max.y,always({x:+1,y:0}));
+    check([p.y+r-box.min.y, v.y, a.y/2],({p})=>box.min.x<=p.x && p.x<=box.max.x,always({x:0,y:-1}));
+    check([p.y-r-box.max.y, v.y, a.y/2],({p})=>box.min.x<=p.x && p.x<=box.max.x,always({x:0,y:+1}));
+    // Poniżej znajduje się wyprowadzenie wzoru na równanie 4tego stopnia opisujące kolizję kulki z narożnikiem.
+    //  ((p.x+v.x*t+a.x/2*tt)-c.x)**2 + ...  = r*r
+    //  ((p.x-c.x)+v.x*t+a.x/2*tt)**2 + ...  = r*r
+    //  (p.x-c.x)**2  + v.x**2*tt +(a.x/2)**2*tttt + 2(p.x-c.x)*v.x*t + 2(p.x-c.x)*a.x/2*tt + 2*v.x*a.x/2*ttt +     ...  = r*r
+    [box.min.x,box.max.x].forEach(cx =>
+      [box.min.y,box.max.y].forEach(cy =>{
+        const c = {x:cx,y:cy};
+        const o = minus(p,c);
+        const by_d=['x','y'].map(d => [o[d]**2, 2*o[d]*v[d], v[d]**2+o[d]*a[d],v[d]*a[d],(a[d]/2)**2]);
+        const eq = by_d[0].map((v,i)=>v+by_d[1][i]);
+        eq[0]-=r*r;
+        check(eq, always(true), f => {
+          const d=distance(f.p,c);
+          if(zign(d-r)){
+            console.log("wrong distance on corner collision",d);
+          }
+          return normalize(minus(f.p,c))
+        });
+      })
+    );
+    return collision;
+  }
+  document.body.addEventListener('keydown',e => {
+    const acc={
+      'ArrowUp'   : {x: 0, y:-1},
+      'ArrowDown' : {x: 0, y: 1},
+      'ArrowLeft' : {x:-1, y: 0},
+      'ArrowRight': {x: 1, y: 0},
+    }[e.key];
+    if(acc){
+      ballModel.a=acc;
+      document.getElementById('arena').className=e.key;
+    }
+  })
+  // const report= x => {document.getElementById('reading').innerText=x};
+  const report= x => {console.log(x)};
+  
+  function handleGravity(acl){
+    const len = Math.sqrt(acl.x**2 + acl.y**2 + acl.z**2)||1;
+    const n = {x: acl.x/len, y: acl.y/len, z: acl.z/len};
+    // report(['x','y','z'].map(d=>`${d}=${n[d].toFixed(2)}`).join(' ') + ` ${screen.orientation.type} ${screen.orientation.angle}` );
+    //landscape-secondary 270, left=+y, right=-y, down=-x, up=+x
+    //   landscape-primary 90, left=-y, right=+y, down=+x, up=-x
+    //     portrait-primary 0, left=+x, right=-x, down=+y, up=-y
+    const right = polar(deg2rad(180-screen.orientation.angle),1);
+    const up = polar(deg2rad(270-screen.orientation.angle),1);
+    ballModel.a = {x: scalar(right,n), y:-scalar(up,n)};
+  } 
+  try {
+      let accelerometer = new GravitySensor({ referenceFrame: 'device',frequency: 60 });
+      accelerometer.addEventListener('error', event => {
+          // Handle runtime errors.
+          if (event.error.name === 'NotAllowedError') {
+              // Branch to code for requesting permission.
+          } else if (event.error.name === 'NotReadableError' ) {
+              report('Cannot connect to the sensor.');
+          }
+      });
+      accelerometer.addEventListener('reading', () => handleGravity(accelerometer));
+      accelerometer.start();
+  } catch (error) {
+      // Handle construction errors.
+      if (error.name === 'SecurityError') {
+          // See the note above about feature policy.
+          report('Sensor construction was blocked by a feature policy.');
+      //} else if (error.name === 'ReferenceError') {
+      //    report('Sensor is not supported by the User Agent.');
+      } else {
+          report(error.toString());
+      }
+  }
+}
+
+
 
 if(photo.complete){
   analyze();

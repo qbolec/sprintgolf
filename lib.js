@@ -144,3 +144,58 @@ function solve(A,b){
   }
   return solution;
 }
+function evaluate(a,x){
+  if(!Number.isFinite(x)){
+    return a.at(-1)*(x**(a.length-1));
+  }
+  return a.reduce((acc,v,i)=>acc+v*(x**i),0);
+}
+function zign(x){
+  return x<-1e-9?-1:1e-9<x?1:0;
+}
+function bisect_zero(a,min,max){
+  const increasing = evaluate(a,min)<=evaluate(a,max);
+  const larger = (x,dir) => (Math.abs(x)*2+1)*Math.sign(dir);
+  const split = (min,max)=>Number.isFinite(min)?
+      (Number.isFinite(max) ? (max+min)*0.5: larger(min,max)):
+      (Number.isFinite(max) ? larger(max,min) : 0);
+  for(let i=0;i<10000;++i){
+    const mid=split(min,max);
+    const val=evaluate(a,mid);
+    if(!zign(val)){
+      return mid;
+    }
+    if((val<=0) == increasing ){
+      min=mid;
+    }else{
+      max=mid;
+    }
+    if(i==10000-1){
+      debugger;
+    }
+  }
+  return min;
+}
+function derivative(a){
+  return a.slice(1).map((v,k)=>(k+1)*v)
+}
+function zeros(a){
+  while(a.length && !a.at(-1))a.pop()
+  if(!a.length){
+    return [0];
+  }
+  if(a.length==1){
+    return a[0]?[]:[0];
+  }
+  const found=[];
+  [-Infinity,...zeros(derivative(a)),+Infinity].forEach((x,i,xs)=>{
+    if(i&&zign(evaluate(a,x))!=zign(evaluate(a,xs[i-1]))){
+      found.push(bisect_zero(a,xs[i-1],x));
+    }
+  })
+  return found;
+}
+function boxesIntesect(a,b){
+  return a.min.x <= b.max.x && b.min.x <= a.max.x &&
+         a.min.y <= b.max.y && b.min.y <= a.max.y;
+}
