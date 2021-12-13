@@ -533,23 +533,29 @@ function getGridSize(corners){
     // document.getElementById('columns').value=ij.y;
   })
   const DIMS=['x','y'];
-  const FT=DIMS.map(dim => Array.from({length:50},(_,i)=>({dim,n:i+5,period:1/(i+5),scale:Math.PI*2*(i+5),x:0,y:0})));
+  const FT=DIMS.map(dim => Array.from({length:50},(_,i)=>({dim,n:i+5,scale:Math.PI*2*(i+5),x:0,y:0})));
+  const siluethes=DIMS.map(() => Array.from({length:1000},()=>0));
   for(let y=0;y<size.y;++y){
     for(let x=0;x<size.x;++x){
       const pos=xy2pos(x,y);
       const e = data[pos+0];
       const ij=toIJ(simple,{x,y});
-      if(0<=ij.x && ij.x <=1 && 0<=ij.y && ij.y<=1){
-        DIMS.forEach((dim,i)=>{
-          FT[i].forEach(hypothesis=>{
-            const a= ij[dim]*hypothesis.scale;
-            hypothesis.x += Math.cos(a)*e;
-            // hypothesis.y += Math.sin(a)*e;
-          })
-        })
-      } 
+      if(0<=ij.x && ij.x <1 && 0<=ij.y && ij.y<1){
+        DIMS.forEach((dim,i) => siluethes[i][Math.floor(ij[dim]*1000)]+=e)
+      }
     }
   }
+
+  DIMS.forEach((dim,i)=>{
+    siluethes[i].forEach((e,pos)=>{
+      FT[i].forEach(hypothesis=>{
+        const a= pos/1000*hypothesis.scale;
+        hypothesis.x += Math.cos(a)*e;
+        // hypothesis.y += Math.sin(a)*e;
+      });
+    });
+  });
+
   const [x,y]=DIMS.map((dim,i)=>{
     // FT[i].forEach(hypothesis=>{hypothesis.length=length(hypothesis)})
     //Actually, because grid lines on the paper appear at the boundaries of periods,
