@@ -103,7 +103,7 @@
     <audio src="ping.ogg"></audio>
     <audio src="ping.ogg"></audio>
     <div id="arena">
-        <img id="photo" src="labirynt Hugo.jpg"/>
+        <img id="photo" src="0.jpg"/>
         <canvas id="preview" width="800" height="600"></canvas>
       <div id="ball"></div>
       <div id="collision"></div>
@@ -113,11 +113,13 @@
 
     <label for="rows">rows:</label><input type=number id="rows" value=25>
     <label for="columns">columns:</label><input type=number id="columns" value=38>
-
+    <select id="levelPicker"></select>
 
   </body>
   <script type="text/javascript" src="lib.js"></script>
   <script type="text/javascript">
+const levelPicker = document.getElementById('levelPicker');
+levelPicker.innerHTML= Array.from({length:7},(_,i)=>`<option value="${i}.jpg">${i}</option>`).join('');
 
 const photo = document.getElementById('photo');
 const preview = document.getElementById('preview');
@@ -617,6 +619,7 @@ function classifyFields(gridSize,understanding){
       drawDot(taken[r][c]?'red':'black',project(understanding,{x:c+0.5,y:r+0.5}));
     }
   }
+  console.log(taken.map(row => row.map(t => t?'x':' ').join('')).join("\n"))
   return taken;
 }  
 function projectionToMatrix3d(A_inv,s){
@@ -641,10 +644,11 @@ function analyze(){
   // })
   const taken=classifyFields(gridSize,understanding);
   preview.style.display = 'none';
+  return {taken,understanding}
 }
 function analyzeAndPlay(){
   stop();
-  analyze();
+  const {taken,understanding} = analyze();
   play(taken,understanding);
 }
 
@@ -909,13 +913,25 @@ function play(map,understanding){
 }
 
 
-
-if(photo.complete){
-  analyzeAndPlay();
-}else{
-  photo.addEventListener('load',()=>{
-    analyzeAndPlay();
-  })
+function onPhotoComplete(foo){
+  if(photo.complete){
+    foo();
+  }else{
+    function handleAndRemove(){
+      foo();
+      photo.removeEventListener('load',handleAndRemove);  
+    }
+    photo.addEventListener('load',handleAndRemove);
+  }  
 }
+
+onPhotoComplete(analyzeAndPlay);
+
+levelPicker.addEventListener('change',()=>{
+  stop();
+  photo.src = levelPicker.value;
+  onPhotoComplete(analyzeAndPlay);
+})
+
   </script>
 </html>
