@@ -525,13 +525,12 @@ function getGridSize(corners){
   const simple= understand({x:1,y:1},corners);
   const {imageData,data,xy2pos,size}=drawEdges();
   ctx.putImageData(imageData,0,0);
-  preview.addEventListener('mousemove',(e)=>{
-    const p={x:e.offsetX,y:e.offsetY};
-    const ij=toIJ(simple,p);
-
-    // document.getElementById('rows').value=ij.x;
-    // document.getElementById('columns').value=ij.y;
-  })
+  // preview.addEventListener('mousemove',(e)=>{
+  //   const p={x:e.offsetX,y:e.offsetY};
+  //   const ij=toIJ(simple,p);
+  //   document.getElementById('rows').value=ij.x;
+  //   document.getElementById('columns').value=ij.y;
+  // })
   const DIMS=['x','y'];
   const FT=DIMS.map(dim => Array.from({length:50},(_,i)=>({dim,n:i+5,scale:Math.PI*2*(i+5),x:0,y:0})));
   const siluethes=DIMS.map(() => Array.from({length:1000},()=>0));
@@ -628,27 +627,38 @@ function projectionToMatrix3d(A_inv,s){
     A_inv[0][2]*s.x,A_inv[1][2]*s.y,0,A_inv[2][2],
   ].join(',')
 }
-const cellSize={x:20,y:20};
-
 function analyze(){
+  preview.style.display = 'block';
   const corners=getCorners();
   const gridSize=getGridSize(corners);
   const understanding = understand(gridSize,corners);
-  preview.addEventListener('mousemove',(e)=>{
-    const p={x:e.offsetX,y:e.offsetY};
-    const ij=toIJ(understanding,p);
+  // preview.addEventListener('mousemove',(e)=>{
+  //   const p={x:e.offsetX,y:e.offsetY};
+  //   const ij=toIJ(understanding,p);
 
-    document.getElementById('rows').value=ij.x;
-    document.getElementById('columns').value=ij.y;
-  })
+  //   document.getElementById('rows').value=ij.x;
+  //   document.getElementById('columns').value=ij.y;
+  // })
   const taken=classifyFields(gridSize,understanding);
-  const matrix3d=projectionToMatrix3d(understanding.A_inv,cellSize);
-  photo.style.transform = `matrix3d(${matrix3d})`;
   preview.style.display = 'none';
-  play(taken);
+}
+function analyzeAndPlay(){
+  stop();
+  analyze();
+  play(taken,understanding);
 }
 
-function play(map){
+let cleanups = [];
+function stop(){
+  const todo = cleanups;
+  cleanups = [];
+  todo.forEach(f => f());
+}
+const cellSize={x:20,y:20};
+function play(map,understanding){
+  const matrix3d=projectionToMatrix3d(understanding.A_inv,cellSize);
+  photo.style.transform = `matrix3d(${matrix3d})`;
+  cleanups.push(()=>photo.style.transform = '');
   let nextAudioElementIdx = 0;
   let ballModel = {
     r:6,
@@ -665,8 +675,8 @@ function play(map){
       y:2,
     }
   };
-  const HEIGHT = 20*map.length;
-  const WIDTH = 20*map[0].length;
+  const HEIGHT = cellSize.y*map.length;
+  const WIDTH = cellSize.x*map[0].length;
   const boxes = [
     //bottom
     {min:{x:0,y:HEIGHT},max:{x:WIDTH,y:HEIGHT+10}},
@@ -702,6 +712,11 @@ function play(map){
   console.log(boxes.length)
   arena.style.height =HEIGHT  + 'px';
   arena.style.width =WIDTH  + 'px';
+  cleanups.push(()=>{
+    arena.style.height = '';
+    arena.style.width = '';
+  });
+
   /*boxes.forEach(box => {
     const boxElement=document.createElement('div');
     boxElement.className='box';
@@ -711,7 +726,7 @@ function play(map){
     boxElement.style.height = box.max.y-box.min.y + 'px';
     document.getElementById('arena').appendChild(boxElement);
   })*/
-  setInterval(() => {
+  const timer=setInterval(() => {
     
       //nextCollisionWith({"r":20,"p":{"x":20,"y":20},"v":{"x":10,"y":10},"a":{"x":0,"y":2}},{"min":{"x":0,"y":200},"max":{"x":1000,"y":210}});
       //zeros([40,10,0])
@@ -791,6 +806,10 @@ function play(map){
     ballElement.style.left = ballModel.p.x  +"px";
     ballElement.style.top = ballModel.p.y  +"px";
   },20)
+
+  cleanups.push(()=>clearInterval(timer));
+  
+
   function nextCollisionWith({r,p,v,a},box){
     const future = t => ({r:r,a:a,v:plus(v,scale(t,a)), p:plus(plus(p, scale(t,v) ), scale(t*t/2,a) )})
     let collision = null;
@@ -833,7 +852,7 @@ function play(map){
     );
     return collision;
   }
-  document.body.addEventListener('keydown',e => {
+  const keyboardListener = e => {
     const acc={
       'ArrowUp'   : {x: 0, y:-1},
       'ArrowDown' : {x: 0, y: 1},
@@ -844,7 +863,10 @@ function play(map){
       ballModel.a=acc;
       document.getElementById('arena').className=e.key;
     }
-  })
+  }
+  document.body.addEventListener('keydown', keyboardListener)
+  cleanups.push(() => document.body.removeEventListener('keydown', keyboardListener));
+
   // const report= x => {document.getElementById('reading').innerText=x};
   const report= x => {console.log(x)};
   
@@ -861,6 +883,8 @@ function play(map){
   } 
   try {
       let accelerometer = new GravitySensor({ referenceFrame: 'device',frequency: 60 });
+      cleanups.push(() => accelerometer.stop());
+
       accelerometer.addEventListener('error', event => {
           // Handle runtime errors.
           if (event.error.name === 'NotAllowedError') {
@@ -887,10 +911,10 @@ function play(map){
 
 
 if(photo.complete){
-  analyze();
+  analyzeAndPlay();
 }else{
   photo.addEventListener('load',()=>{
-    analyze();
+    analyzeAndPlay();
   })
 }
   </script>
