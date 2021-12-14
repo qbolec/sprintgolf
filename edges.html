@@ -146,9 +146,9 @@ function drawPhoto(){
   const xy2pos = (x,y)=>(y*size.x+x)*4;
   return {size,imageData,data,xy2pos};
 }
-function drawEdges(){
+async function drawEdges(){
   const {size,imageData,data,xy2pos} = drawPhoto();
-
+  await seconds(1);
   const cloned = new Uint8ClampedArray(data);
   const get = (x,y) => {
     const pos=y*size.x*4+4*x;
@@ -183,6 +183,8 @@ function drawEdges(){
       }
     }
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   return {
     size,
     imageData,
@@ -191,8 +193,8 @@ function drawEdges(){
     xy2pos,
   }
 }
-function getCorners(){
-  const {size,imageData,data,es,xy2pos}=drawEdges();
+async function getCorners(){
+  const {size,imageData,data,es,xy2pos}=await drawEdges();
   const threshold = split(es).threshold;
   console.log(`threshold ${threshold}`);
   let above=0;
@@ -206,6 +208,8 @@ function getCorners(){
       } 
     }
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   console.log(`above ${above}`)
   let todo=[];
   for(let y=size.y>>2;y<size.y*3>>2;++y){
@@ -217,7 +221,8 @@ function getCorners(){
       }
     }
   }
-
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   let min_x = Array.from({length:size.y},()=>+Infinity)
   let max_x = Array.from({length:size.y},()=>-Infinity)
   let min_y = Array.from({length:size.x},()=>+Infinity)
@@ -246,6 +251,8 @@ function getCorners(){
       }
     }
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   console.log(`processed ${processed}`);
   const border=[];
   const submit=(x,y)=>{
@@ -255,6 +262,8 @@ function getCorners(){
       border.push({x,y});
     }
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   min_x.forEach((x,y)=>{if(x!=+Infinity){submit(x,y)}})
   max_x.forEach((x,y)=>{if(x!=-Infinity){submit(x,y)}})
   min_y.forEach((y,x)=>{if(y!=+Infinity){submit(x,y)}})
@@ -267,6 +276,8 @@ function getCorners(){
       }
     }
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   console.log(border.length);
   border.sort((a,b)=> Math.atan2(a.y-size.y/2,a.x-size.x/2)-Math.atan2(b.y-size.y/2,b.x-size.x/2))
   const diagonal=Math.sqrt(size.x**2+size.y**2);
@@ -291,6 +302,8 @@ function getCorners(){
       data[pos+2]=huogh[Math.floor(y*180/size.y)][Math.floor(x*span/size.x)]
     }
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   const localOptima=[];
   const mirrorOff = (off) => -(off+lowest)-lowest;
   {
@@ -330,6 +343,8 @@ function getCorners(){
       localOptima.push({deg,off,cnt});
     }))
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   
   localOptima.sort((a,b)=>a.cnt-b.cnt)
   let sides=[];
@@ -367,10 +382,12 @@ function getCorners(){
     for(let x=0;x<size.x;++x){
       if(sides.some((side)=> Math.abs(x*side.x+y*side.y-side.off)<1)){
         const pos=xy2pos(x,y);
-        // data[pos+1]=255;
+        data[pos+1]=255;
       }
     }
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   
   for(let iter=0;iter<3;++iter){
     let sidesSamples=sides.map(()=>[])
@@ -388,6 +405,9 @@ function getCorners(){
     })
     sides=newSides; 
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
+  
   const center={x:size.x/2,y:size.y/2};
   sides=sides.map(side=>{
     const off=side.off-scalar(side,center)
@@ -405,6 +425,8 @@ function getCorners(){
       }
     }
   }
+  ctx.putImageData(imageData,0,0);
+  await seconds(1);
   const corners=sides.map((side,i)=>{
     const next=sides[i+1&3];
     // x * side.x + y * side.y = side.off
@@ -421,6 +443,8 @@ function getCorners(){
     return {x,y};
   });
   ctx.putImageData(imageData,0,0);
+  await seconds(1);
+  
   corners.forEach(corner=>{
     drawDot('green',corner);
   });
@@ -522,10 +546,10 @@ function understand(gridSize,corners){
     vectors,
   }
 }
-function getGridSize(corners){
+async function getGridSize(corners){
   // first, we don't know how many rows and columns are there, so we will just pretend it's 1x1
   const simple= understand({x:1,y:1},corners);
-  const {imageData,data,xy2pos,size}=drawEdges();
+  const {imageData,data,xy2pos,size}=await drawEdges();
   ctx.putImageData(imageData,0,0);
   // preview.addEventListener('mousemove',(e)=>{
   //   const p={x:e.offsetX,y:e.offsetY};
@@ -574,7 +598,7 @@ function getGridSize(corners){
   return {x,y};
 }
 const FOCUS = 0.25;
-function classifyFields(gridSize,understanding){
+async function classifyFields(gridSize,understanding){
   const {size,imageData,data,xy2pos} = drawPhoto();
   const stats = [];
   for(let y=0;y<size.y;++y){
@@ -630,10 +654,10 @@ function projectionToMatrix3d(A_inv,s){
     A_inv[0][2]*s.x,A_inv[1][2]*s.y,0,A_inv[2][2],
   ].join(',')
 }
-function analyze(){
+async function analyze(){
   preview.style.display = 'block';
-  const corners=getCorners();
-  const gridSize=getGridSize(corners);
+  const corners=await getCorners();
+  const gridSize=await getGridSize(corners);
   const understanding = understand(gridSize,corners);
   // preview.addEventListener('mousemove',(e)=>{
   //   const p={x:e.offsetX,y:e.offsetY};
@@ -642,13 +666,13 @@ function analyze(){
   //   document.getElementById('rows').value=ij.x;
   //   document.getElementById('columns').value=ij.y;
   // })
-  const taken=classifyFields(gridSize,understanding);
+  const taken=await classifyFields(gridSize,understanding);
   preview.style.display = 'none';
   return {taken,understanding}
 }
-function analyzeAndPlay(){
+async function analyzeAndPlay(){
   stop();
-  const {taken,understanding} = analyze();
+  const {taken,understanding} = await analyze();
   play(taken,understanding);
 }
 

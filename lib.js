@@ -199,3 +199,4 @@ function boxesIntesect(a,b){
   return a.min.x <= b.max.x && b.min.x <= a.max.x &&
          a.min.y <= b.max.y && b.min.y <= a.max.y;
 }
+const seconds = n => new Promise(resolve=>setTimeout(resolve,n*1000))
