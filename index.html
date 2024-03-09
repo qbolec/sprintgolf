@@ -389,6 +389,7 @@ document.body.addEventListener('keydown',e => {
     document.getElementById('arena').className=e.key;
   }
 })
+document.documentElement.addEventListener('click',()=>document.documentElement.requestFullscreen())
 // const report= x => {document.getElementById('reading').innerText=x};
 const report= x => {console.log(x)};
 function handleGravity(acl){
