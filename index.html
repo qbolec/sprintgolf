@@ -11,6 +11,7 @@
       padding:0;
       background: black;
       overflow: hidden;
+      height: 100vh;
     }
     #photo{
       transform-origin:0 0;
@@ -75,12 +76,20 @@
       border:1px solid red;
       display: none;
     }
+    #fitter{
+      position: absolute;
+      top:0;
+      left:0;
+      width: 100%;
+      height: 100vh;
+      transform-origin: top;
+    }
     #reading{
-        position: fixed;
-        top:10px;
-        left:10px;
-        color:red;
-      }
+      position: fixed;
+      top:10px;
+      left:10px;
+      color:red;
+    }
   </style>
 </head>
 
@@ -89,11 +98,11 @@
   <audio src="ping.ogg"></audio>
   <audio src="ping.ogg"></audio>
   <audio src="ping.ogg"></audio>
-  <div id="arena"><img src="0.jpg" id="photo" width=800 height=600/>
-  <div id="ball"></div>
-  <div id="collision"></div>
-  <div id="futureBox"></div>
-  </div>
+  <div id="fitter"><div id="arena"><img src="0.jpg" id="photo" width=800 height=600/>
+    <div id="ball"></div>
+    <div id="collision"></div>
+    <div id="futureBox"></div>
+  </div></div>
   <div id="reading"></div>
 </body>
 
@@ -273,6 +282,8 @@
     ballModel.a=originalAcceleration;
     ballElement.style.left = ballModel.p.x  +"px";
     ballElement.style.top = ballModel.p.y  +"px";
+    const shrink = Math.min((document.body.clientHeight)/(arena.clientHeight+60),document.body.clientWidth/arena.clientWidth); 
+    document.getElementById('fitter').style.transform=`scale(${shrink})`
   },20)
 function evaluate(a,x){
   if(!Number.isFinite(x)){
